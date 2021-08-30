@@ -1,0 +1,16 @@
+[package]
+name = "boot"
+version = "0.1.0"
+edition = "2018"
+
+[dependencies]
+
+[profile.dev]
+panic = "abort"
+opt-level = "z"
+lto = true
+
+[profile.release]
+panic = "abort"
+opt-level = "z"
+lto = true
