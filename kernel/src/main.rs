@@ -1,5 +1,8 @@
 #![no_std]
 #![no_main]
+#![feature(global_asm)]
+
+mod switch;
 
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo) -> ! {
