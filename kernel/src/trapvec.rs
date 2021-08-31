@@ -21,9 +21,9 @@ seq!(N in 0..=255 {
         unsafe {
             asm! {
                 r#"
-					 push {}
-					 jmp alltraps
-					 "#, 
+                push {}
+                jmp alltraps
+                "#, 
                 const N,
                 options(noreturn),
             }
