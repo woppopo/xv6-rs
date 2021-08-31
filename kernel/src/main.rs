@@ -1,8 +1,11 @@
 #![no_std]
 #![no_main]
+#![feature(asm)]
 #![feature(global_asm)]
 
+mod picirq;
 mod switch;
+mod x86;
 
 #[panic_handler]
 fn panic(_info: &core::panic::PanicInfo) -> ! {
@@ -43,6 +46,8 @@ static _binary_entryother_size: usize = ENTRYOTHER.len();
 // doing some setup required for memory allocator to work.
 #[no_mangle]
 unsafe extern "C" fn main() {
+    use crate::picirq::picinit;
+
     pub const PHYSTOP: usize = 0xE000000; // Top physical memory
 
     extern "C" {
@@ -52,7 +57,6 @@ unsafe extern "C" fn main() {
         fn mpinit();
         fn lapicinit();
         fn seginit();
-        fn picinit();
         fn ioapicinit();
         fn consoleinit();
         fn uartinit();

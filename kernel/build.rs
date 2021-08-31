@@ -45,7 +45,6 @@ fn main() {
         "log",
         "main",
         "mp",
-        "picirq",
         "pipe",
         "proc",
         "sleeplock",
