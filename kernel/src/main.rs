@@ -5,6 +5,7 @@
 
 mod picirq;
 mod switch;
+mod trapasm;
 mod x86;
 
 #[panic_handler]
