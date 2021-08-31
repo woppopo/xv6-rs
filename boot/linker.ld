@@ -1,20 +1,15 @@
-OUTPUT_FORMAT("elf32-i386")
+OUTPUT_FORMAT(elf32-i386)
 OUTPUT_ARCH(i386)
 ENTRY(start)
 MBRBASE = 0x7C00;
 
 SECTIONS {
     . = MBRBASE;
-    .text : {
-      *(.text)
-      *(.text*)
-      *(.data*)
-      *(.bss*)
-      *(.rodata*)
-    }
-
-    /* .textが510バイトを超えているとブートシグニチャが入らなくてエラー */
+    .text : { *(.text*) }
+    .data : { *(.data*) }
+    .bss : { *(.bss*) }
+    .rodata : { *(.rodata*) }
 
     . = MBRBASE + 510;
-    .sign : { SHORT(0xAA55) } /* ブートシグニチャ */
+    .sign : { SHORT(0xAA55) }
 }
