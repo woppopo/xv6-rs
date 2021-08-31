@@ -17,20 +17,18 @@ const SEGMENT_KERNEL_CODE: u32 = 1;
 #[allow(unused)]
 const SEGMENT_KERNEL_DATA: u32 = 2;
 
-const ELF_MAGIC: u32 = 0x464C457F; // "\x7FELF" in little endian
 const SECTOR_SIZE: usize = 512;
 
 global_asm!(
     r#"
-    .code16                       # 16bitモード用の命令群に切り替え
+    .code16
     .globl start
     start:
-        cli                         # BIOSは割り込みを有効にしているが、無効にする
-        # データセグメントレジスタであるDS, ES, SSをゼロにする
-        xor ax, ax             # %axをゼロにする
-        mov ds, ax             # -> データセグメント
-        mov es, ax             # -> エクストラセグメント
-        mov ss, ax             # -> スタックセグメント
+        cli
+        xor ax, ax # ax = 0
+        mov ds, ax # データセグメント = 0
+        mov es, ax # エクストラセグメント = 0
+        mov ss, ax # スタックセグメント = 0
 
     # Physical address line A20 is tied to zero so that the first PCs
     # with 2 MB would run software that assumed 1 MB.  Undo that.
@@ -163,7 +161,8 @@ pub struct ElfHeader {
 }
 
 impl ElfHeader {
-    pub fn is_elf(&self) -> bool {
+    pub const fn is_elf(&self) -> bool {
+        const ELF_MAGIC: u32 = 0x464C457F; // "\x7FELF" in little endian
         self.magic == ELF_MAGIC
     }
 }
