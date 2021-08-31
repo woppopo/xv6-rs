@@ -1,2 +1,9 @@
+*~
+_*
+*.o
+*.d
+*.asm
+*.sym
+*.img
 Cargo.lock
 target/
