@@ -148,7 +148,7 @@ pub struct ElfHeader {
     pub ty: u16,
     pub machine: u16,
     pub version: u32,
-    pub entry: u32,
+    pub entry: extern "C" fn(),
     pub phoff: u32,
     pub shoff: u32,
     pub flags: u32,
@@ -256,11 +256,10 @@ unsafe extern "C" fn boot_main() {
 
     // Call the entry point from the ELF header.
     // Does not return!
-    let entry: extern "C" fn() -> ! = core::mem::transmute((*elf).entry);
-    entry();
+    ((*elf).entry)();
 }
 
-fn waitdisk() {
+fn wait_disk() {
     // Wait for disk ready.
     while (unsafe { inb(0x1F7) } & 0xC0) != 0x40 {}
 }
@@ -268,7 +267,7 @@ fn waitdisk() {
 // Read a single sector at offset into dst.
 unsafe fn read_sector(dst: *mut u8, offset: usize) {
     // Issue command.
-    waitdisk();
+    wait_disk();
     outb(0x1F2, 1); // count = 1
     outb(0x1F3, offset as u8);
     outb(0x1F4, (offset >> 8) as u8);
@@ -277,7 +276,7 @@ unsafe fn read_sector(dst: *mut u8, offset: usize) {
     outb(0x1F7, 0x20); // cmd 0x20 - read sectors
 
     // Read data.
-    waitdisk();
+    wait_disk();
     insl(0x1F0, dst as *mut u32, SECTOR_SIZE / 4);
 }
 
