@@ -65,7 +65,7 @@ fn main() {
         println!("cargo:rustc-link-lib=static={}", file);
     }
 
-    let asm_files = ["entry", "vectors"];
+    let asm_files = ["entry"];
     for file in asm_files {
         build
             .clone()

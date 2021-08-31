@@ -2,10 +2,13 @@
 #![no_main]
 #![feature(asm)]
 #![feature(global_asm)]
+#![feature(naked_functions)]
 
 mod picirq;
 mod switch;
+mod trap;
 mod trapasm;
+mod trapvec;
 mod x86;
 
 #[panic_handler]
