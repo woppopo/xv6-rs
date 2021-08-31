@@ -32,7 +32,7 @@ global_asm!(
         mov es, ax             # -> エクストラセグメント
         mov ss, ax             # -> スタックセグメント
 
-    # Physical address line A20 is tied to zero so that the first PCs 
+    # Physical address line A20 is tied to zero so that the first PCs
     # with 2 MB would run software that assumed 1 MB.  Undo that.
     set_a20_1:
         in al, 0x64  # Wait for not busy
@@ -76,18 +76,17 @@ global_asm!(
         mov fs, ax                # -> FS
         mov gs, ax                # -> GS
 
-    # Set up the stack pointer and call into C.
-    mov esp, start
-    call boot_main
+        lea esp, start
+        call boot_main
 
-    # If bootmain returns (it shouldn't), trigger a Bochs
-    # breakpoint if running under Bochs, then loop.
-    mov ax, 0x8a00           # 0x8a00 -> port 0x8a00
-    mov dx, ax
-    out dx, ax
-    mov ax, 0x8ae0            # 0x8ae0 -> port 0x8a00
-    out dx, ax
-
+        # If bootmain returns (it shouldn't), trigger a Bochs
+        # breakpoint if running under Bochs, then loop.
+        mov ax, 0x8a00           # 0x8a00 -> port 0x8a00
+        mov dx, ax
+        out dx, ax
+        mov ax, 0x8ae0            # 0x8ae0 -> port 0x8a00
+        out dx, ax
+    
     spin:
         jmp spin
     "#,
@@ -205,10 +204,8 @@ fn panic(_info: &core::panic::PanicInfo) -> ! {
     loop {}
 }
 
-unsafe fn inl(port: u16) -> u32 {
-    let mut val;
-    asm!("in eax, dx", out("eax") val, in("dx") port, options(nostack));
-    val
+unsafe fn insl(port: u16, mut _addr: *mut u32, mut _count: usize) {
+    asm!("cld; rep insl", in("dx") port, inout("ecx") _count, inout("edi") _addr, options(att_syntax));
 }
 
 unsafe fn inb(port: u16) -> u8 {
@@ -270,9 +267,7 @@ fn waitdisk() {
 }
 
 // Read a single sector at offset into dst.
-unsafe fn read_sector(dst: &mut [u8], offset: usize) {
-    assert!(dst.len() >= SECTOR_SIZE);
-
+unsafe fn read_sector(dst: *mut u8, offset: usize) {
     // Issue command.
     waitdisk();
     outb(0x1F2, 1); // count = 1
@@ -284,13 +279,7 @@ unsafe fn read_sector(dst: &mut [u8], offset: usize) {
 
     // Read data.
     waitdisk();
-    for i in 0..(SECTOR_SIZE / 4) {
-        let dword = inl(0x1F0);
-        dst[i * 4 + 0] = (dword & 0xff) as u8;
-        dst[i * 4 + 1] = ((dword >> 8) & 0xff) as u8;
-        dst[i * 4 + 2] = ((dword >> 16) & 0xff) as u8;
-        dst[i * 4 + 3] = ((dword >> 24) & 0xff) as u8;
-    }
+    insl(0x1F0, dst as *mut u32, SECTOR_SIZE / 4);
 }
 
 // Read 'count' bytes at 'offset' from kernel into physical address 'pa'.
@@ -308,8 +297,7 @@ unsafe fn read_segment(paddr: *mut u8, count: usize, offset: usize) {
     // We'd write more to memory than asked, but it doesn't matter --
     // we load in increasing order.
     while paddr < end_paddr {
-        let dst = core::slice::from_raw_parts_mut(paddr, SECTOR_SIZE);
-        read_sector(dst, offset);
+        read_sector(paddr, offset);
 
         paddr = paddr.add(SECTOR_SIZE);
         offset += 1;

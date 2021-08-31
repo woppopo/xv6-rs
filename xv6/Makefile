@@ -288,8 +288,6 @@ bootblock_old: bootasm.S bootmain.c
 	./sign.pl bootblock
 
 bootblock:
-	cd ../boot/ && cargo build --release
-	cp ../boot/target/i386-unknown-none/release/boot ./bootblock
-	$(OBJDUMP) -S bootblock > bootblock.asm
-	$(OBJCOPY) -S -O binary -j .text bootblock.o bootblock
-	./sign.pl bootblock
+	$(OBJDUMP) -S ../boot/target/i386-unknown-none/release/boot > bootblock.asm
+	cd ../boot/ && cargo objcopy --release -- -O binary bootblock
+	cp ../boot/bootblock .

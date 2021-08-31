@@ -7,13 +7,11 @@ SECTIONS {
     . = MBRBASE;
     .text : {
       *(.text)
-      *(.text.*)
+      *(.text*)
+      *(.data*)
+      *(.bss*)
+      *(.rodata*)
     }
-	 .rodata : {
-      . = ALIGN(4);
-      *(.rodata)
-      *(.rodata.*)
-	 }
 
     /* .textが510バイトを超えているとブートシグニチャが入らなくてエラー */
 
