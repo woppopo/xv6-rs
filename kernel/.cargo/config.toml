@@ -1,0 +1,6 @@
+[unstable]
+build-std = ["core"]
+
+[build]
+target = "../i386-unknown-none.json"
+rustflags = ["-C", "link-args=linker.ld"]
