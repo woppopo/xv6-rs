@@ -219,6 +219,6 @@ qemu-nox-gdb: fs.img xv6.img .gdbinit
 .PHONY: bootblock
 
 bootblock:
-	$(OBJDUMP) -S ../boot/target/i386-unknown-none/release/boot > bootblock.asm
-	cd ../boot/ && cargo objcopy --release -- -O binary bootblock
-	cp ../boot/bootblock .
+	cp ../boot/target/i386-unknown-none/release/boot ./bootblock.o
+	$(OBJDUMP) -S bootblock.o > bootblock.asm
+	$(OBJCOPY) -S -O binary bootblock.o bootblock
