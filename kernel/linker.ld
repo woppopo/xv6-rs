@@ -47,13 +47,13 @@ SECTIONS
 
 	/* The data segment */
 	.data : {
-		*(.data)
+		*(.data .data.*)
 	}
 
 	PROVIDE(edata = .);
 
 	.bss : {
-		*(.bss)
+		*(.bss .bss.*)
 	}
 
 	PROVIDE(end = .);
