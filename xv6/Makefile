@@ -182,9 +182,16 @@ qemu-nox-gdb: fs.img xv6.img .gdbinit
 .PHONY: bootblock kernel
 
 bootblock:
+	cd ../boot && cargo build --release
 	cp ../boot/target/i386-unknown-none/release/boot ./bootblock.o
 	$(OBJDUMP) -S bootblock.o > bootblock.asm
 	$(OBJCOPY) -S -O binary bootblock.o bootblock
+
+kernel:
+	cd ../kernel && cargo build --release
+	cp ../kernel/target/i386-unknown-none/release/kernel ./kernel
+	$(OBJDUMP) -S kernel > kernel.asm
+	$(OBJDUMP) -t kernel | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > kernel.sym
 
 entryother_old: entryother.S
 	$(CC) $(CFLAGS) -fno-pic -nostdinc -I. -c entryother.S
@@ -200,10 +207,5 @@ initcode_old: initcode.S
 
 kernel_old: $(OBJS) entry.o entryother initcode kernel.ld
 	$(LD) $(LDFLAGS) -T kernel.ld -o kernel entry.o $(OBJS) -b binary initcode entryother
-	$(OBJDUMP) -S kernel > kernel.asm
-	$(OBJDUMP) -t kernel | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > kernel.sym
-
-kernel:
-	cp ../kernel/target/i386-unknown-none/release/kernel ./kernel
 	$(OBJDUMP) -S kernel > kernel.asm
 	$(OBJDUMP) -t kernel | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$$/d' > kernel.sym
