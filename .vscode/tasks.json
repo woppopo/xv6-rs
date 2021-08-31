@@ -1,0 +1,16 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "qemu-gdb",
+			"type": "shell",
+			"command": "make",
+			"args": [
+				"qemu-gdb"
+			],
+			"options": {
+				"cwd": "${workspaceFolder}/xv6"
+			}
+		}
+	]
+}
