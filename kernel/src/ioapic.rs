@@ -61,7 +61,7 @@ pub fn ioapicinit(ioapicid: u8) {
 }
 
 #[no_mangle]
-extern "C" fn ioapicenable(irq: u32, cpunum: u32) {
+pub extern "C" fn ioapicenable(irq: u32, cpunum: u32) {
     let ioapic = IoApic::from_addr(IOAPIC_ADDR);
 
     // Mark interrupt edge-triggered, active high,

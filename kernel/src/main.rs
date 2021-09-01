@@ -6,11 +6,13 @@
 
 mod console;
 mod ioapic;
+mod lapic;
 mod picirq;
 mod switch;
 mod trap;
 mod trapasm;
 mod trapvec;
+mod uart;
 mod x86;
 
 #[panic_handler]
@@ -54,6 +56,7 @@ static _binary_entryother_size: usize = ENTRYOTHER.len();
 unsafe extern "C" fn main() {
     use crate::ioapic::ioapicinit;
     use crate::picirq::picinit;
+    use crate::uart::uartinit;
 
     pub const PHYSTOP: usize = 0xE000000; // Top physical memory
 
@@ -66,7 +69,6 @@ unsafe extern "C" fn main() {
         fn lapicinit();
         fn seginit();
         fn consoleinit();
-        fn uartinit();
         fn pinit();
         fn tvinit();
         fn binit();

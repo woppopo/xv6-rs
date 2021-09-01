@@ -53,7 +53,6 @@ fn main() {
         "sysfile",
         "sysproc",
         "trap",
-        "uart",
         "vm",
     ];
     for file in c_files {
