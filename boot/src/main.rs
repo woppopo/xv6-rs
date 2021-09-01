@@ -121,7 +121,7 @@ impl Segment {
 }
 
 #[repr(packed)]
-struct GdtDescriptor(u16, *const Segment);
+struct GdtDescriptor(pub u16, pub *const Segment);
 
 // 本来、ポインタ型はSyncを満たさないためstatic変数に用いることはできない
 // しかし、このブートコードはシングルスレッドで動作するため、安全であるとみなしてSyncを付ける
