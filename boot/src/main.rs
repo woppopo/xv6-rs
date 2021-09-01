@@ -153,9 +153,10 @@ pub struct ElfHeader {
 }
 
 impl ElfHeader {
+    const MAGIC: u32 = 0x464C457F; // "\x7FELF" in little endian
+
     pub const fn is_elf(&self) -> bool {
-        const ELF_MAGIC: u32 = 0x464C457F; // "\x7FELF" in little endian
-        self.magic == ELF_MAGIC
+        self.magic == Self::MAGIC
     }
 }
 
