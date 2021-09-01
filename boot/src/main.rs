@@ -94,13 +94,7 @@ global_asm!(
 );
 
 #[repr(C, align(4))]
-struct Aligned4<T>(T);
-
-impl<T> Aligned4<T> {
-    pub const fn new(val: T) -> Self {
-        Self(val)
-    }
-}
+struct Aligned4<T>(pub T);
 
 #[repr(packed)]
 struct Segment(u16, u16, u8, u8, u8, u8);
@@ -175,7 +169,7 @@ pub struct ProgramHeader {
 
 #[used]
 #[no_mangle]
-static GDT: Aligned4<[Segment; 3]> = Aligned4::new([
+static GDT: Aligned4<[Segment; 3]> = Aligned4([
     Segment::null(),
     Segment::new(
         Segment::TYPE_EXECUTABLE | Segment::TYPE_READABLE,
