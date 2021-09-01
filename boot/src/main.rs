@@ -106,17 +106,9 @@ impl<T> Aligned4<T> {
 struct Segment(u16, u16, u8, u8, u8, u8);
 
 impl Segment {
-    pub const fn type_executable() -> u8 {
-        0x8
-    }
-
-    pub const fn type_writable() -> u8 {
-        0x2
-    }
-
-    pub const fn type_readable() -> u8 {
-        0x2
-    }
+    pub const TYPE_EXECUTABLE: u8 = 0x8;
+    pub const TYPE_WRITABLE: u8 = 0x2;
+    pub const TYPE_READABLE: u8 = 0x2;
 
     pub const fn null() -> Self {
         Self(0, 0, 0, 0, 0, 0)
@@ -185,11 +177,11 @@ pub struct ProgramHeader {
 static GDT: Aligned4<[Segment; 3]> = Aligned4::new([
     Segment::null(),
     Segment::new(
-        Segment::type_executable() | Segment::type_readable(),
+        Segment::TYPE_EXECUTABLE | Segment::TYPE_READABLE,
         0x0,
         0xffffffff,
     ),
-    Segment::new(Segment::type_writable(), 0x0, 0xffffffff),
+    Segment::new(Segment::TYPE_WRITABLE, 0x0, 0xffffffff),
 ]);
 
 #[used]
