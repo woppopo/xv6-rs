@@ -4,6 +4,8 @@
 #![feature(global_asm)]
 #![feature(naked_functions)]
 
+mod console;
+mod ioapic;
 mod picirq;
 mod switch;
 mod trap;
@@ -50,18 +52,19 @@ static _binary_entryother_size: usize = ENTRYOTHER.len();
 // doing some setup required for memory allocator to work.
 #[no_mangle]
 unsafe extern "C" fn main() {
+    use crate::ioapic::ioapicinit;
     use crate::picirq::picinit;
 
     pub const PHYSTOP: usize = 0xE000000; // Top physical memory
 
     extern "C" {
+        static ioapicid: u8;
         fn end(); // first address after kernel loaded from ELF file
         fn kinit1(vstart: *const u8, vend: *const u8);
         fn kvmalloc();
         fn mpinit();
         fn lapicinit();
         fn seginit();
-        fn ioapicinit();
         fn consoleinit();
         fn uartinit();
         fn pinit();
@@ -90,7 +93,7 @@ unsafe extern "C" fn main() {
     lapicinit(); // interrupt controller
     seginit(); // segment descriptors
     picinit(); // disable pic
-    ioapicinit(); // another interrupt controller
+    ioapicinit(ioapicid); // another interrupt controller
     consoleinit(); // console hardware
     uartinit(); // serial port
     pinit(); // process table

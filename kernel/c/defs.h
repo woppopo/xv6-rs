@@ -58,10 +58,9 @@ void            ideinit(void);
 void            ideintr(void);
 void            iderw(struct buf*);
 
-// ioapic.c
-void            ioapicenable(int irq, int cpu);
+// ioapic.rs
+void            ioapicenable(uint irq, uint cpu);
 extern uchar    ioapicid;
-void            ioapicinit(void);
 
 // kalloc.c
 char*           kalloc(void);

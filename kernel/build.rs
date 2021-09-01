@@ -38,7 +38,6 @@ fn main() {
         "file",
         "fs",
         "ide",
-        "ioapic",
         "kalloc",
         "kbd",
         "lapic",
