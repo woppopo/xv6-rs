@@ -238,10 +238,7 @@ unsafe extern "C" fn boot_main() {
         read_segment(paddr, filesize, offset);
 
         if memsize > filesize {
-            let paddr: *mut u8 = paddr.add(filesize);
-            for i in 0..(memsize - filesize) {
-                *paddr.add(i) = 0;
-            }
+            core::ptr::write_bytes(paddr.add(filesize), 0, memsize - filesize);
         }
 
         ph = ph.add(1);
