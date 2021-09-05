@@ -40,7 +40,6 @@ fn main() {
         "ide",
         "kalloc",
         "kbd",
-        "lapic",
         "log",
         "main",
         "mp",

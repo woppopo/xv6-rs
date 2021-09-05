@@ -14,6 +14,7 @@
 struct cpu cpus[NCPU];
 int ncpu;
 uchar ioapicid;
+volatile uint* lapic;
 
 static uchar
 sum(uchar *addr, int len)

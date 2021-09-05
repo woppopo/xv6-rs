@@ -71,12 +71,11 @@ void            kinit2(void*, void*);
 // kbd.c
 void            kbdintr(void);
 
-// lapic.c
-void            cmostime(struct rtcdate *r);
+// lapic.rs
+void            lapicinit(volatile uint*);
 int             lapicid(void);
 extern volatile uint*    lapic;
 void            lapiceoi(void);
-void            lapicinit(void);
 void            lapicstartap(uchar, uint);
 void            microdelay(int);
 

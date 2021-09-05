@@ -7,6 +7,7 @@
 mod console;
 mod ioapic;
 mod lapic;
+mod memlayout;
 mod picirq;
 mod switch;
 mod trap;
@@ -55,18 +56,18 @@ static _binary_entryother_size: usize = ENTRYOTHER.len();
 #[no_mangle]
 unsafe extern "C" fn main() {
     use crate::ioapic::ioapicinit;
+    use crate::lapic::lapicinit;
+    use crate::memlayout::{p2v, PHYSTOP};
     use crate::picirq::picinit;
     use crate::uart::uartinit;
 
-    pub const PHYSTOP: usize = 0xE000000; // Top physical memory
-
     extern "C" {
         static ioapicid: u8;
+        static lapic: *mut u32;
         fn end(); // first address after kernel loaded from ELF file
         fn kinit1(vstart: *const u8, vend: *const u8);
         fn kvmalloc();
         fn mpinit();
-        fn lapicinit();
         fn seginit();
         fn consoleinit();
         fn pinit();
@@ -80,19 +81,10 @@ unsafe extern "C" fn main() {
         fn mpmain();
     }
 
-    pub const KERNBASE: usize = 0x80000000; // First kernel virtual address
-    fn p2v(paddr: usize) -> usize {
-        paddr + KERNBASE
-    }
-
-    fn v2p(vaddr: usize) -> usize {
-        vaddr - KERNBASE
-    }
-
     kinit1(end as _, p2v(4 * 1024 * 1024) as _); // phys page allocator
     kvmalloc(); // kernel page table
     mpinit(); // detect other processors
-    lapicinit(); // interrupt controller
+    lapicinit(lapic); // interrupt controller
     seginit(); // segment descriptors
     picinit(); // disable pic
     ioapicinit(ioapicid); // another interrupt controller

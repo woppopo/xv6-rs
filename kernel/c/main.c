@@ -22,7 +22,7 @@ void mpenter(void)
 {
   switchkvm();
   seginit();
-  lapicinit();
+  lapicinit(lapic);
   mpmain();
 }
 

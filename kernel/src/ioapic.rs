@@ -6,6 +6,17 @@ pub struct IoApic {
 }
 
 impl IoApic {
+    const REG_ID: u32 = 0x00; // Register index: ID
+    const REG_VER: u32 = 0x01; // Register index: version
+    const REG_TABLE: u32 = 0x10; // Redirection table base
+
+    // The redirection table starts at REG_TABLE and uses
+    // two registers to configure each interrupt.
+    // The first (low) register in a pair contains configuration bits.
+    // The second (high) register contains a bitmask telling which
+    // CPUs can serve that interrupt.
+    const INT_DISABLED: u32 = 0x00010000; // Interrupt disabled
+
     pub const fn from_addr(addr: usize) -> Self {
         Self {
             reg: addr as *mut u32,
@@ -29,22 +40,12 @@ impl IoApic {
 }
 
 const IOAPIC_ADDR: usize = 0xFEC00000; // Default physical address of IO APIC
-const IOAPIC_REG_ID: u32 = 0x00; // Register index: ID
-const IOAPIC_REG_VER: u32 = 0x01; // Register index: version
-const IOAPIC_REG_TABLE: u32 = 0x10; // Redirection table base
-
-// The redirection table starts at REG_TABLE and uses
-// two registers to configure each interrupt.
-// The first (low) register in a pair contains configuration bits.
-// The second (high) register contains a bitmask telling which
-// CPUs can serve that interrupt.
-const INT_DISABLED: u32 = 0x00010000; // Interrupt disabled
 
 pub fn ioapicinit(ioapicid: u8) {
     let ioapic = IoApic::from_addr(IOAPIC_ADDR);
 
-    let id = ioapic.read(IOAPIC_REG_ID);
-    let ver = ioapic.read(IOAPIC_REG_VER);
+    let id = ioapic.read(IoApic::REG_ID);
+    let ver = ioapic.read(IoApic::REG_VER);
     let max_interrupt = (ver >> 16) & 0xff;
 
     if id != ioapicid as u32 {
@@ -55,8 +56,11 @@ pub fn ioapicinit(ioapicid: u8) {
     // Mark all interrupts edge-triggered, active high, disabled,
     // and not routed to any CPUs.
     for i in 0..=max_interrupt {
-        ioapic.write(IOAPIC_REG_TABLE + 2 * i, INT_DISABLED | (T_IRQ0 + i));
-        ioapic.write(IOAPIC_REG_TABLE + 2 * i + 1, 0);
+        ioapic.write(
+            IoApic::REG_TABLE + 2 * i,
+            IoApic::INT_DISABLED | (T_IRQ0 + i),
+        );
+        ioapic.write(IoApic::REG_TABLE + 2 * i + 1, 0);
     }
 }
 
@@ -67,6 +71,6 @@ pub extern "C" fn ioapicenable(irq: u32, cpunum: u32) {
     // Mark interrupt edge-triggered, active high,
     // enabled, and routed to the given cpunum,
     // which happens to be that cpu's APIC ID.
-    ioapic.write(IOAPIC_REG_TABLE + 2 * irq, T_IRQ0 + irq);
-    ioapic.write(IOAPIC_REG_TABLE + 2 * irq + 1, cpunum << 24);
+    ioapic.write(IoApic::REG_TABLE + 2 * irq, T_IRQ0 + irq);
+    ioapic.write(IoApic::REG_TABLE + 2 * irq + 1, cpunum << 24);
 }

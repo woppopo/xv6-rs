@@ -1,6 +1,3 @@
-use crate::ioapic::ioapicenable;
-use crate::lapic::microdelay;
-use crate::trap::IRQ_COM1;
 use crate::x86::{inb, outb};
 
 const COM1: u16 = 0x3f8;
@@ -8,6 +5,9 @@ const COM1: u16 = 0x3f8;
 static mut UART_INITIALIZED: bool = false;
 
 pub fn uartinit() {
+    use crate::ioapic::ioapicenable;
+    use crate::trap::IRQ_COM1;
+
     unsafe {
         // Turn off the FIFO
         outb(COM1 + 2, 0);
@@ -42,6 +42,8 @@ pub fn uartinit() {
 
 #[no_mangle]
 pub extern "C" fn uartputc(c: u32) {
+    use crate::lapic::microdelay;
+
     unsafe {
         if !UART_INITIALIZED {
             return;
