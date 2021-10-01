@@ -13,7 +13,7 @@ const CFLAGS: &[&'static str] = &[
     "-O2",
     "-Wall",
     //"-MD",
-    "-ggdb",
+    //"-ggdb",
     "-m32",
     //"-Werror",
     "-fno-omit-frame-pointer",

@@ -18,9 +18,9 @@ void            bwrite(struct buf*);
 
 // console.c
 void            consoleinit(void);
-void            cprintf(char*, ...);
+void            cprintf(const char*, ...);
 void            consoleintr(int(*)(void));
-void            panic(char*) __attribute__((noreturn));
+void            panic(const char*) __attribute__((noreturn));
 
 // exec.c
 int             exec(char*, char**);
@@ -82,8 +82,8 @@ void            microdelay(int);
 // log.c
 void            initlog(int dev);
 void            log_write(struct buf*);
-void            begin_op();
-void            end_op();
+void            begin_op(void);
+void            end_op(void);
 
 // mp.c
 extern int      ismp;
@@ -107,7 +107,7 @@ int             fork(void);
 int             growproc(int);
 int             kill(int);
 struct cpu*     mycpu(void);
-struct proc*    myproc();
+struct proc*    myproc(void);
 void            pinit(void);
 void            procdump(void);
 void            scheduler(void) __attribute__((noreturn));
@@ -126,7 +126,7 @@ void            swtch(struct context**, struct context*);
 void            acquire(struct spinlock*);
 void            getcallerpcs(void*, uint*);
 int             holding(struct spinlock*);
-void            initlock(struct spinlock*, char*);
+void            initlock(struct spinlock*, const char*);
 void            release(struct spinlock*);
 void            pushcli(void);
 void            popcli(void);
@@ -135,7 +135,7 @@ void            popcli(void);
 void            acquiresleep(struct sleeplock*);
 void            releasesleep(struct sleeplock*);
 int             holdingsleep(struct sleeplock*);
-void            initsleeplock(struct sleeplock*, char*);
+void            initsleeplock(struct sleeplock*, const char*);
 
 // string.c
 int             memcmp(const void*, const void*, uint);

@@ -3,17 +3,22 @@
 #![feature(asm)]
 #![feature(global_asm)]
 #![feature(naked_functions)]
+#![feature(const_panic)]
+#![feature(const_size_of_val)]
 
 mod console;
 mod ioapic;
+mod kalloc;
 mod lapic;
 mod memlayout;
+mod mmu;
 mod picirq;
 mod switch;
 mod trap;
 mod trapasm;
 mod trapvec;
 mod uart;
+mod vm;
 mod x86;
 
 #[panic_handler]
