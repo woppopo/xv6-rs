@@ -1,6 +1,8 @@
 use core::ffi::c_void;
 
 use crate::{
+    file::INode,
+    fs::read_inode,
     kalloc::kalloc_zeroed,
     memlayout::{p2v, v2p, DEVSPACE, EXTMEM, KERNBASE, KERNLINK, PHYSTOP},
     mmu::{pg_rounddown, PGSIZE},
@@ -130,6 +132,22 @@ extern "C" fn inituvm(pgdir: *mut PDE, init: *const u8, sz: u32) {
 extern "C" fn mappages(pde: *mut PDE, va: *const c_void, size: u32, pa: u32, perm: u32) -> i32 {
     let map = unsafe { map_pages(pde, va as usize, size as usize, pa as usize, perm) };
     if map {
+        0
+    } else {
+        -1
+    }
+}
+
+#[no_mangle]
+extern "C" fn loaduvm(
+    pgdir: *mut PDE,
+    dst: *mut u8,
+    ip: *const INode,
+    offset: u32,
+    size: u32,
+) -> i32 {
+    let load = uvm_load(pgdir, dst as usize, ip, offset as usize, size as usize);
+    if load {
         0
     } else {
         -1
@@ -315,4 +333,26 @@ fn uvm_init(pgdir: *mut PDE, init: &[u8]) {
         map_pages(pgdir, 0, PGSIZE, v2p(mem), PTE::W | PTE::U);
         core::ptr::copy_nonoverlapping(init.as_ptr(), mem as *mut u8, init.len());
     }
+}
+
+// Load a program segment into pgdir.  addr must be page-aligned
+// and the pages from addr to addr+sz must already be mapped.
+fn uvm_load(pgdir: *mut PDE, addr: usize, ip: *const INode, offset: usize, size: usize) -> bool {
+    if addr % PGSIZE != 0 {
+        panic!("uvm_load: addr must be page aligned");
+    }
+
+    for i in (0..size).step_by(PGSIZE) {
+        let pte =
+            unsafe { walk_pgdir(pgdir, addr + i, false) }.expect("uvm_load: address should exist");
+
+        let pa = unsafe { (*pte).address() };
+        let n = if size - i < PGSIZE { size - i } else { PGSIZE };
+
+        if read_inode(ip, p2v(pa), offset + i, n) != n {
+            return false;
+        }
+    }
+
+    true
 }
