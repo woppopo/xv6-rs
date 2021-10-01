@@ -2,8 +2,9 @@ use core::ffi::c_void;
 
 use crate::{
     kalloc::kalloc_zeroed,
-    memlayout::{p2v, v2p},
+    memlayout::{p2v, v2p, DEVSPACE, EXTMEM, KERNBASE, KERNLINK, PHYSTOP},
     mmu::{pg_rounddown, PGSIZE},
+    x86::lcr3,
 };
 
 #[repr(transparent)]
@@ -104,13 +105,22 @@ extern "C" fn walkpgdir(pgdir: *mut PDE, va: *const c_void, alloc: u32) -> *mut 
 }
 
 #[no_mangle]
-unsafe extern "C" fn mappages(
-    pde: *mut PDE,
-    va: *const c_void,
-    size: u32,
-    pa: u32,
-    perm: u32,
-) -> i32 {
+extern "C" fn setupkvm() -> *mut PDE {
+    kvm_setup().unwrap_or(core::ptr::null_mut())
+}
+
+#[no_mangle]
+extern "C" fn kvmalloc() {
+    kvm_alloc()
+}
+
+#[no_mangle]
+extern "C" fn switchkvm() {
+    kvm_switch()
+}
+
+#[no_mangle]
+extern "C" fn mappages(pde: *mut PDE, va: *const c_void, size: u32, pa: u32, perm: u32) -> i32 {
     let map = unsafe { map_pages(pde, va as usize, size as usize, pa as usize, perm) };
     if map {
         0
@@ -167,4 +177,121 @@ unsafe fn map_pages(pgdir: *mut PDE, va: usize, size: usize, mut pa: usize, perm
     }
 
     true
+}
+
+struct KMap {
+    virt: usize,
+    phys_start: usize,
+    phys_end: usize,
+    perm: u32,
+}
+
+// There is one page table per process, plus one that's used when
+// a CPU is not running any process (kpgdir). The kernel uses the
+// current process's page table during system calls and interrupts;
+// page protection bits prevent user code from using the kernel's
+// mappings.
+//
+// setupkvm() and exec() set up every page table like this:
+//
+//   0..KERNBASE: user memory (text+data+stack+heap), mapped to
+//                phys memory allocated by the kernel
+//   KERNBASE..KERNBASE+EXTMEM: mapped to 0..EXTMEM (for I/O space)
+//   KERNBASE+EXTMEM..data: mapped to EXTMEM..V2P(data)
+//                for the kernel's instructions and r/o data
+//   data..KERNBASE+PHYSTOP: mapped to V2P(data)..PHYSTOP,
+//                                  rw data + free physical memory
+//   0xfe000000..0: mapped direct (devices such as ioapic)
+//
+// The kernel allocates physical memory for its heap and for user memory
+// between V2P(end) and the end of physical memory (PHYSTOP)
+// (directly addressable from end..P2V(PHYSTOP)).
+
+fn kvm_setup() -> Option<*mut PDE> {
+    let pgdir = kalloc_zeroed()?;
+    let pgdir = pgdir as *mut PDE;
+
+    if p2v(PHYSTOP) > DEVSPACE {
+        panic!("PHYSTOP too high");
+    }
+
+    extern "C" {
+        fn data();
+    }
+
+    // This table defines the kernel's mappings, which are present in
+    // every process's page table.
+    let kmap = [
+        // I/O space
+        KMap {
+            virt: KERNBASE,
+            phys_start: 0,
+            phys_end: EXTMEM,
+            perm: PTE::W,
+        },
+        // kern text+rodata
+        KMap {
+            virt: KERNLINK,
+            phys_start: v2p(KERNLINK),
+            phys_end: v2p(data as usize),
+            perm: 0,
+        },
+        // kern data+memory
+        KMap {
+            virt: data as usize,
+            phys_start: v2p(data as usize),
+            phys_end: PHYSTOP,
+            perm: PTE::W,
+        },
+        // more devices
+        KMap {
+            virt: DEVSPACE,
+            phys_start: DEVSPACE,
+            phys_end: usize::MAX,
+            perm: PTE::W,
+        },
+    ];
+
+    for k in kmap {
+        if unsafe {
+            !map_pages(
+                pgdir,
+                k.virt,
+                k.phys_end - k.phys_start,
+                k.phys_start,
+                k.perm,
+            )
+        } {
+            unsafe {
+                extern "C" {
+                    fn freevm(pgdir: *mut PDE);
+                }
+                freevm(pgdir);
+            }
+            return None;
+        }
+    }
+
+    Some(pgdir)
+}
+
+extern "C" {
+    static mut kpgdir: *mut PDE;
+}
+
+// Allocate one page table for the machine for the kernel address
+// space for scheduler processes.
+pub fn kvm_alloc() {
+    unsafe {
+        kpgdir = kvm_setup().expect("");
+    }
+    kvm_switch();
+}
+
+// Switch h/w page table register to the kernel-only page table,
+// for when no process is running.
+fn kvm_switch() {
+    unsafe {
+        lcr3(v2p(kpgdir as usize) as u32); // switch to the kernel page table
+    }
 }

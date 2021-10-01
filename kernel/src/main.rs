@@ -65,13 +65,13 @@ unsafe extern "C" fn main() {
     use crate::memlayout::{p2v, PHYSTOP};
     use crate::picirq::picinit;
     use crate::uart::uartinit;
+    use crate::vm::kvm_alloc;
 
     extern "C" {
         static ioapicid: u8;
         static lapic: *mut u32;
         fn end(); // first address after kernel loaded from ELF file
         fn kinit1(vstart: *const u8, vend: *const u8);
-        fn kvmalloc();
         fn mpinit();
         fn seginit();
         fn consoleinit();
@@ -87,7 +87,7 @@ unsafe extern "C" fn main() {
     }
 
     kinit1(end as _, p2v(4 * 1024 * 1024) as _); // phys page allocator
-    kvmalloc(); // kernel page table
+    kvm_alloc(); // kernel page table
     mpinit(); // detect other processors
     lapicinit(lapic); // interrupt controller
     seginit(); // segment descriptors
