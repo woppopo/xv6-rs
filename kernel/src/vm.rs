@@ -1,6 +1,10 @@
 use core::ffi::c_void;
 
-use crate::{kalloc::kalloc_zeroed, memlayout::p2v};
+use crate::{
+    kalloc::kalloc_zeroed,
+    memlayout::{p2v, v2p},
+    mmu::{pg_rounddown, PGSIZE},
+};
 
 #[repr(transparent)]
 struct PDE(u32);
@@ -94,26 +98,73 @@ impl PTE {
     }
 }
 
+#[no_mangle]
+extern "C" fn walkpgdir(pgdir: *mut PDE, va: *const c_void, alloc: u32) -> *mut PTE {
+    unsafe { walk_pgdir(pgdir, va as usize, alloc != 0) }.unwrap_or(core::ptr::null_mut())
+}
+
+#[no_mangle]
+unsafe extern "C" fn mappages(
+    pde: *mut PDE,
+    va: *const c_void,
+    size: u32,
+    pa: u32,
+    perm: u32,
+) -> i32 {
+    let map = unsafe { map_pages(pde, va as usize, size as usize, pa as usize, perm) };
+    if map {
+        0
+    } else {
+        -1
+    }
+}
+
 // Return the address of the PTE in page table pgdir
 // that corresponds to virtual address va.  If alloc!=0,
 // create any required page table pages.
-unsafe fn walk_pgdir(pgdir: *mut PDE, va: *const c_void, alloc: u32) -> *const PTE {
+unsafe fn walk_pgdir(pgdir: *mut PDE, va: usize, alloc: bool) -> Option<*mut PTE> {
     let pde = pgdir.add(PDE::index(va as usize));
     let pgtab = if (*pde).is_present() {
         p2v((*pde).address())
     } else {
-        if alloc == 0 {
-            return core::ptr::null();
+        if !alloc {
+            return None;
         }
 
-        let pgtab = match kalloc_zeroed() {
-            Some(addr) => addr,
-            None => return core::ptr::null(),
-        };
-
-        *pde = PDE::new(pgtab, PDE::P | PDE::W | PDE::U);
+        let pgtab = kalloc_zeroed()?;
+        *pde = PDE::new(v2p(pgtab), PDE::P | PDE::W | PDE::U);
         pgtab
     };
 
-    (pgtab as *const PTE).add(PTE::index(va as usize))
+    let pt = (pgtab as *mut PTE).add(PTE::index(va as usize));
+    Some(pt)
+}
+
+// Create PTEs for virtual addresses starting at va that refer to
+// physical addresses starting at pa. va and size might not
+// be page-aligned.
+unsafe fn map_pages(pgdir: *mut PDE, va: usize, size: usize, mut pa: usize, perm: u32) -> bool {
+    let mut a = pg_rounddown(va);
+    let last = pg_rounddown(va + size - 1);
+
+    loop {
+        let pte = match walk_pgdir(pgdir, a, true) {
+            Some(pte) => pte,
+            None => return false,
+        };
+
+        if (*pte).is_present() {
+            panic!("remap");
+        }
+        *pte = PTE::new(pa, perm | PTE::P);
+
+        if a == last {
+            break;
+        }
+
+        a += PGSIZE;
+        pa += PGSIZE;
+    }
+
+    true
 }
