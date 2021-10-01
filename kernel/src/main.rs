@@ -7,12 +7,19 @@
 #![feature(const_size_of_val)]
 
 mod console;
+mod file;
+mod fs;
 mod ioapic;
 mod kalloc;
 mod lapic;
 mod memlayout;
 mod mmu;
+mod param;
 mod picirq;
+mod pipe;
+mod proc;
+mod sleeplock;
+mod spinlock;
 mod switch;
 mod trap;
 mod trapasm;

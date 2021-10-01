@@ -54,20 +54,6 @@ void switchuvm(struct proc *p)
   popcli();
 }
 
-// Load the initcode into address 0 of pgdir.
-// sz must be less than a page.
-void inituvm(pde_t *pgdir, char *init, uint sz)
-{
-  char *mem;
-
-  if (sz >= PGSIZE)
-    panic("inituvm: more than a page");
-  mem = kalloc();
-  memset(mem, 0, PGSIZE);
-  mappages(pgdir, 0, PGSIZE, V2P(mem), PTE_W | PTE_U);
-  memmove(mem, init, sz);
-}
-
 // Load a program segment into pgdir.  addr must be page-aligned
 // and the pages from addr to addr+sz must already be mapped.
 int loaduvm(pde_t *pgdir, char *addr, struct inode *ip, uint offset, uint sz)

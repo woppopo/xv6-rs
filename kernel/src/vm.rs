@@ -8,7 +8,7 @@ use crate::{
 };
 
 #[repr(transparent)]
-struct PDE(u32);
+pub struct PDE(u32);
 
 impl PDE {
     const P: u32 = 0x001;
@@ -117,6 +117,13 @@ extern "C" fn kvmalloc() {
 #[no_mangle]
 extern "C" fn switchkvm() {
     kvm_switch()
+}
+
+#[no_mangle]
+extern "C" fn inituvm(pgdir: *mut PDE, init: *const u8, sz: u32) {
+    uvm_init(pgdir, unsafe {
+        core::slice::from_raw_parts(init, sz as usize)
+    });
 }
 
 #[no_mangle]
@@ -293,5 +300,19 @@ pub fn kvm_alloc() {
 fn kvm_switch() {
     unsafe {
         lcr3(v2p(kpgdir as usize) as u32); // switch to the kernel page table
+    }
+}
+
+// Load the initcode into address 0 of pgdir.
+// sz must be less than a page.
+fn uvm_init(pgdir: *mut PDE, init: &[u8]) {
+    if init.len() > PGSIZE {
+        panic!("uvm_init: more than a page");
+    }
+
+    let mem = kalloc_zeroed().expect("oom");
+    unsafe {
+        map_pages(pgdir, 0, PGSIZE, v2p(mem), PTE::W | PTE::U);
+        core::ptr::copy_nonoverlapping(init.as_ptr(), mem as *mut u8, init.len());
     }
 }
