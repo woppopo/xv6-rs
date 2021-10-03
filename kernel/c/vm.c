@@ -8,11 +8,7 @@
 #include "elf.h"
 
 extern char data[]; // defined by kernel.ld
-extern pte_t *walkpgdir(pde_t *pgdir, const void *va, int alloc);
-extern int mappages(pde_t *pgdir, void *va, uint size, uint pa, int perm);
-extern int allocuvm(pde_t *pgdir, uint oldsz, uint newsz);
-extern int deallocuvm(pde_t *pgdir, uint oldsz, uint newsz);
-pde_t *kpgdir; // for use in scheduler()
+pde_t *kpgdir;      // for use in scheduler()
 
 // Set up CPU's kernel segment descriptors.
 // Run once on entry on each CPU.

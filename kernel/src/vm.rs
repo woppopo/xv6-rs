@@ -467,13 +467,13 @@ fn copy_out(pgdir: *mut PDE, va: usize, p: usize, len: usize) -> bool {
     while len > 0 {
         let va0 = pg_rounddown(va);
         let pa0 = match uva_to_ka(pgdir, va0) {
-            Some(pa2) => pa2,
+            Some(pa0) => pa0,
             None => return false,
         };
 
         let n = (PGSIZE - (va - va0)).min(len);
         unsafe {
-            core::ptr::copy_nonoverlapping((pa0 + (va - va0)) as *const u8, buf as *mut u8, n);
+            core::ptr::copy_nonoverlapping(buf as *const u8, (pa0 + (va - va0)) as *mut u8, n);
         }
 
         len -= n;
@@ -490,6 +490,15 @@ mod _binding {
     #[no_mangle]
     extern "C" fn walkpgdir(pgdir: *mut PDE, va: *const c_void, alloc: u32) -> *mut PTE {
         unsafe { walk_pgdir(pgdir, va as usize, alloc != 0) }.unwrap_or(core::ptr::null_mut())
+    }
+
+    #[no_mangle]
+    extern "C" fn mappages(pde: *mut PDE, va: *const c_void, size: u32, pa: u32, perm: u32) -> i32 {
+        let map = unsafe { map_pages(pde, va as usize, size as usize, pa as usize, perm) };
+        match map {
+            true => 0,
+            false => -1,
+        }
     }
 
     #[no_mangle]
@@ -512,15 +521,6 @@ mod _binding {
         uvm_init(pgdir, unsafe {
             core::slice::from_raw_parts(init, sz as usize)
         });
-    }
-
-    #[no_mangle]
-    extern "C" fn mappages(pde: *mut PDE, va: *const c_void, size: u32, pa: u32, perm: u32) -> i32 {
-        let map = unsafe { map_pages(pde, va as usize, size as usize, pa as usize, perm) };
-        match map {
-            true => 0,
-            false => -1,
-        }
     }
 
     #[no_mangle]
