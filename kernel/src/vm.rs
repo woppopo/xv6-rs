@@ -3,9 +3,10 @@ use core::ffi::c_void;
 use crate::{
     file::INode,
     fs::read_inode,
-    kalloc::kalloc_zeroed,
+    kalloc::{kalloc, kalloc_zeroed, kfree},
     memlayout::{p2v, v2p, DEVSPACE, EXTMEM, KERNBASE, KERNLINK, PHYSTOP},
-    mmu::{pg_rounddown, PGSIZE},
+    mmu::{pg_address, pg_rounddown, pg_roundup, NPDENTRIES, PGSIZE},
+    proc::Process,
     x86::lcr3,
 };
 
@@ -13,6 +14,8 @@ use crate::{
 pub struct PDE(u32);
 
 impl PDE {
+    const NULL: Self = Self(0);
+
     const P: u32 = 0x001;
     const W: u32 = 0x002;
     const U: u32 = 0x004;
@@ -59,6 +62,8 @@ impl PDE {
 struct PTE(u32);
 
 impl PTE {
+    const NULL: Self = Self(0);
+
     const P: u32 = 0x001;
     const W: u32 = 0x002;
     const U: u32 = 0x004;
@@ -98,59 +103,6 @@ impl PTE {
 
     pub const fn index(va: usize) -> usize {
         (va >> 12) & 0x3ff
-    }
-}
-
-#[no_mangle]
-extern "C" fn walkpgdir(pgdir: *mut PDE, va: *const c_void, alloc: u32) -> *mut PTE {
-    unsafe { walk_pgdir(pgdir, va as usize, alloc != 0) }.unwrap_or(core::ptr::null_mut())
-}
-
-#[no_mangle]
-extern "C" fn setupkvm() -> *mut PDE {
-    kvm_setup().unwrap_or(core::ptr::null_mut())
-}
-
-#[no_mangle]
-extern "C" fn kvmalloc() {
-    kvm_alloc()
-}
-
-#[no_mangle]
-extern "C" fn switchkvm() {
-    kvm_switch()
-}
-
-#[no_mangle]
-extern "C" fn inituvm(pgdir: *mut PDE, init: *const u8, sz: u32) {
-    uvm_init(pgdir, unsafe {
-        core::slice::from_raw_parts(init, sz as usize)
-    });
-}
-
-#[no_mangle]
-extern "C" fn mappages(pde: *mut PDE, va: *const c_void, size: u32, pa: u32, perm: u32) -> i32 {
-    let map = unsafe { map_pages(pde, va as usize, size as usize, pa as usize, perm) };
-    if map {
-        0
-    } else {
-        -1
-    }
-}
-
-#[no_mangle]
-extern "C" fn loaduvm(
-    pgdir: *mut PDE,
-    dst: *mut u8,
-    ip: *const INode,
-    offset: u32,
-    size: u32,
-) -> i32 {
-    let load = uvm_load(pgdir, dst as usize, ip, offset as usize, size as usize);
-    if load {
-        0
-    } else {
-        -1
     }
 }
 
@@ -355,4 +307,279 @@ fn uvm_load(pgdir: *mut PDE, addr: usize, ip: *const INode, offset: usize, size:
     }
 
     true
+}
+
+// Allocate page tables and physical memory to grow process from oldsz to
+// newsz, which need not be page aligned.  Returns new size or 0 on error.
+fn uvm_alloc(pgdir: *mut PDE, size_old: usize, size_new: usize) -> usize {
+    if size_new >= KERNBASE {
+        return 0;
+    }
+
+    if size_new < size_old {
+        return size_old;
+    }
+
+    extern "C" {
+        fn deallocuvm(pgdir: *mut PDE, size_old: usize, size_new: usize) -> i32;
+    }
+
+    for a in (pg_roundup(size_old)..size_new).step_by(PGSIZE) {
+        let mem = match kalloc_zeroed() {
+            Some(mem) => mem,
+            None => {
+                //cprintf("allocuvm out of memory\n");
+                unimplemented!();
+                unsafe {
+                    deallocuvm(pgdir, size_new, size_old);
+                }
+                return 0;
+            }
+        };
+
+        if unsafe { !map_pages(pgdir, a, PGSIZE, v2p(mem), PTE::W | PTE::U) } {
+            //cprintf("allocuvm out of memory (2)\n");
+            unimplemented!();
+            unsafe {
+                deallocuvm(pgdir, size_new, size_old);
+            }
+            kfree(mem);
+            return 0;
+        }
+    }
+
+    size_new
+}
+
+// Deallocate user pages to bring the process size from oldsz to
+// newsz.  oldsz and newsz need not be page-aligned, nor does newsz
+// need to be less than oldsz.  oldsz can be larger than the actual
+// process size.  Returns the new process size.
+fn uvm_dealloc(pgdir: *mut PDE, size_old: usize, size_new: usize) -> usize {
+    if size_new >= size_old {
+        return size_old;
+    }
+
+    let mut a = pg_roundup(size_new);
+    while a < size_old {
+        let pte = unsafe { walk_pgdir(pgdir, a, false) };
+        match pte {
+            Some(pte) => {
+                if unsafe { (*pte).is_present() } {
+                    let pa = unsafe { (*pte).address() };
+                    if pa == 0 {
+                        panic!("kfree");
+                    }
+                    //kfree(p2v(pa));
+                    unsafe {
+                        *pte = PTE::NULL;
+                    }
+                }
+                a += PGSIZE;
+            }
+            None => {
+                a = pg_address(PDE::index(a) + 1, 0, 0);
+            }
+        }
+    }
+
+    size_new
+}
+
+// Free a page table and all the physical memory pages
+// in the user part.
+fn vm_free(pgdir: *mut PDE) {
+    if pgdir.is_null() {
+        panic!("vm_Free: no pgdir");
+    }
+
+    uvm_dealloc(pgdir, KERNBASE, 0);
+
+    for i in 0..NPDENTRIES {
+        if unsafe { (*pgdir.add(i)).is_present() } {
+            kfree(p2v(unsafe { (*pgdir.add(i)).address() }));
+        }
+    }
+
+    kfree(pgdir as usize);
+}
+
+// Clear PTE_U on a page. Used to create an inaccessible
+// page beneath the user stack.
+fn clear_pte_u(pgdir: *mut PDE, uva: usize) {
+    unsafe {
+        let pte = walk_pgdir(pgdir, uva, false).expect("clear_pte_u");
+        (*pte).0 &= !PTE::U;
+    }
+}
+
+// Given a parent process's page table, create a copy
+// of it for a child.
+fn uvm_copy(pgdir: *mut PDE, size: usize) -> Option<*mut PDE> {
+    let dir = kvm_setup()?;
+    for i in (0..size).step_by(PGSIZE) {
+        let pte = unsafe { walk_pgdir(pgdir, i, false).expect("uvm_copy: pte should exist") };
+        if unsafe { !(*pte).is_present() } {
+            panic!("uvm_copy: page not present");
+        }
+
+        let pa = unsafe { (*pte).address() };
+        let flags = unsafe { (*pte).flags() };
+
+        let success = kalloc().and_then(|mem| {
+            unsafe {
+                core::ptr::copy_nonoverlapping(p2v(pa) as *const u8, mem as *mut u8, PGSIZE);
+            }
+
+            if unsafe { map_pages(dir, i, PGSIZE, v2p(mem), flags) } {
+                Some(())
+            } else {
+                kfree(mem);
+                None
+            }
+        });
+
+        if success.is_none() {
+            vm_free(pgdir);
+            return None;
+        }
+    }
+
+    Some(dir)
+}
+
+// Map user virtual address to kernel address.
+fn uva_to_ka(pgdir: *mut PDE, uva: usize) -> Option<usize> {
+    unsafe {
+        let pte = walk_pgdir(pgdir, uva, false)
+            .filter(|pte| (**pte).is_present() && (**pte).is_user())?;
+        Some(p2v((*pte).address()))
+    }
+}
+
+// Copy len bytes from p to user address va in page table pgdir.
+// Most useful when pgdir is not the current page table.
+// uva2ka ensures this only works for PTE_U pages.
+fn copy_out(pgdir: *mut PDE, va: usize, p: usize, len: usize) -> bool {
+    let mut len = len;
+    let mut buf = p;
+    let mut va = va;
+    while len > 0 {
+        let va0 = pg_rounddown(va);
+        let pa0 = match uva_to_ka(pgdir, va0) {
+            Some(pa2) => pa2,
+            None => return false,
+        };
+
+        let n = (PGSIZE - (va - va0)).min(len);
+        unsafe {
+            core::ptr::copy_nonoverlapping((pa0 + (va - va0)) as *const u8, buf as *mut u8, n);
+        }
+
+        len -= n;
+        buf += n;
+        va = va0 + PGSIZE;
+    }
+
+    true
+}
+
+mod _binding {
+    use super::*;
+
+    #[no_mangle]
+    extern "C" fn walkpgdir(pgdir: *mut PDE, va: *const c_void, alloc: u32) -> *mut PTE {
+        unsafe { walk_pgdir(pgdir, va as usize, alloc != 0) }.unwrap_or(core::ptr::null_mut())
+    }
+
+    #[no_mangle]
+    extern "C" fn setupkvm() -> *mut PDE {
+        kvm_setup().unwrap_or(core::ptr::null_mut())
+    }
+
+    #[no_mangle]
+    extern "C" fn kvmalloc() {
+        kvm_alloc()
+    }
+
+    #[no_mangle]
+    extern "C" fn switchkvm() {
+        kvm_switch()
+    }
+
+    #[no_mangle]
+    extern "C" fn inituvm(pgdir: *mut PDE, init: *const u8, sz: u32) {
+        uvm_init(pgdir, unsafe {
+            core::slice::from_raw_parts(init, sz as usize)
+        });
+    }
+
+    #[no_mangle]
+    extern "C" fn mappages(pde: *mut PDE, va: *const c_void, size: u32, pa: u32, perm: u32) -> i32 {
+        let map = unsafe { map_pages(pde, va as usize, size as usize, pa as usize, perm) };
+        match map {
+            true => 0,
+            false => -1,
+        }
+    }
+
+    #[no_mangle]
+    extern "C" fn loaduvm(
+        pgdir: *mut PDE,
+        dst: *mut u8,
+        ip: *const INode,
+        offset: u32,
+        size: u32,
+    ) -> i32 {
+        let load = uvm_load(pgdir, dst as usize, ip, offset as usize, size as usize);
+        match load {
+            true => 0,
+            false => -1,
+        }
+    }
+
+    #[no_mangle]
+    extern "C" fn allocuvm(pgdir: *mut PDE, oldsz: u32, newsz: u32) -> i32 {
+        uvm_alloc(pgdir, oldsz as usize, newsz as usize) as i32
+    }
+
+    #[no_mangle]
+    extern "C" fn deallocuvm(pgdir: *mut PDE, oldsz: u32, newsz: u32) -> i32 {
+        uvm_dealloc(pgdir, oldsz as usize, newsz as usize) as i32
+    }
+
+    #[no_mangle]
+    extern "C" fn freevm(pgdir: *mut PDE) {
+        vm_free(pgdir);
+    }
+
+    #[no_mangle]
+    extern "C" fn clearpteu(pgdir: *mut PDE, uva: *const i8) {
+        clear_pte_u(pgdir, uva as usize);
+    }
+
+    #[no_mangle]
+    extern "C" fn copyuvm(pgdir: *mut PDE, sz: u32) -> *mut PDE {
+        let pde = uvm_copy(pgdir, sz as usize);
+        match pde {
+            Some(pde) => pde,
+            None => core::ptr::null_mut(),
+        }
+    }
+
+    #[no_mangle]
+    extern "C" fn uva2ka(pgdir: *mut PDE, uva: *const i8) -> *const i8 {
+        match uva_to_ka(pgdir, uva as usize) {
+            Some(addr) => addr as *const i8,
+            None => core::ptr::null(),
+        }
+    }
+
+    #[no_mangle]
+    extern "C" fn copyout(pgdir: *mut PDE, va: u32, p: *const c_void, len: u32) -> i32 {
+        match copy_out(pgdir, va as usize, p as usize, len as usize) {
+            true => 0,
+            false => -1,
+        }
+    }
 }

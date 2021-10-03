@@ -22,3 +22,13 @@ pub fn kalloc_zeroed() -> Option<usize> {
     }
     Some(addr)
 }
+
+pub fn kfree(v: usize) {
+    extern "C" {
+        fn kfree(v: *mut i8);
+    }
+
+    unsafe {
+        kfree(v as *mut i8);
+    }
+}

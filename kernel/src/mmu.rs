@@ -1,6 +1,9 @@
 use core::ffi::c_void;
 
-pub const PGSIZE: usize = 4096;
+// Page directory and page table constants.
+pub const NPDENTRIES: usize = 1024; // # directory entries per page directory
+pub const NPTENTRIES: usize = 1024; // # PTEs per page table
+pub const PGSIZE: usize = 4096; // bytes mapped by a page
 
 // cpu->gdt[NSEGS] holds the above segments.
 pub const NSEGS: usize = 6;
@@ -76,4 +79,9 @@ pub const fn pg_roundup(size: usize) -> usize {
 
 pub const fn pg_rounddown(size: usize) -> usize {
     size & !(PGSIZE - 1)
+}
+
+// construct virtual address from indexes and offset
+pub const fn pg_address(tbl_id: usize, entry_id: usize, offset: usize) -> usize {
+    (tbl_id << 22) | (entry_id << 12) | offset
 }
