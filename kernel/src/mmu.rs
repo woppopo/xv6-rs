@@ -9,26 +9,68 @@ pub const PGSIZE: usize = 4096; // bytes mapped by a page
 pub const NSEGS: usize = 6;
 
 #[repr(C)]
-pub struct SegmentDescriptor {
-    lim_15_0: u16,  // Low bits of segment limit
-    base_15_0: u16, // Low bits of segment base address
-    base_23_16: u8, // Middle bits of segment base address
-    /*
-    type: u4; // Segment type (see STS_ constants)
-    s: u1; // 0 = system, 1 = application
-    dpl: u2; // Descriptor Privilege Level
-    p: u1; // Present
-    */
-    type_s_dpl_p: u8,
-    /*
-    lim_19_16: u4; // High bits of segment limit
-    avl: u1; // Unused (available for software use)
-    rsv1: u1; // Reserved
-    db: u1; // 0 = 16-bit segment, 1 = 32-bit segment
-    g: u1; // Granularity: limit scaled by 4K when set
-    */
-    lim_19_16_avl_rsv1_db_g: u8,
-    base_31_24: u8, // High bits of segment base address
+pub struct SegmentDescriptorTable {
+    pub _null: SegmentDescriptor,
+    pub kernel_code: SegmentDescriptor,
+    pub kernel_data: SegmentDescriptor,
+    pub user_code: SegmentDescriptor,
+    pub user_data: SegmentDescriptor,
+    pub task_state: SegmentDescriptor,
+}
+
+impl SegmentDescriptorTable {
+    pub fn load(&self) {
+        #[repr(C, packed)]
+        struct GDTR {
+            limit: u16,
+            base: *const SegmentDescriptorTable,
+        }
+
+        let gdtr = GDTR {
+            limit: (core::mem::size_of::<Self>() - 1) as u16,
+            base: self,
+        };
+
+        unsafe {
+            asm!("lgdt [{0}]", in(reg) &gdtr);
+        }
+    }
+}
+
+#[repr(C, packed)]
+pub struct SegmentDescriptor(u32, u32);
+
+impl SegmentDescriptor {
+    pub const fn null() -> Self {
+        Self(0, 0)
+    }
+
+    pub const fn new(ty: u8, base: u32, limit: u32, dpl: u8) -> Self {
+        const fn bits(a: u32, start: usize, end: usize) -> u32 {
+            let len = end - start;
+            let mask = (1 << (len + 1)) - 1;
+            (a >> start) & mask
+        }
+
+        let desc0 = bits(base, 0, 15) << 16 | bits(limit, 0, 15);
+        let desc1 = bits(base, 24, 31) << 24
+            | 1 << 23
+            | 1 << 22
+            | 0 << 21
+            | 0 << 20
+            | bits(limit, 16, 19) << 16
+            | 1 << 15
+            | (dpl as u32) << 13
+            | 1 << 12
+            | (ty as u32) << 8
+            | bits(base, 16, 23);
+
+        Self(desc0, desc1)
+    }
+
+    pub const fn new16(ty: u8, base: u32, limit: u32, dpl: u8, s: bool) -> Self {
+        todo!()
+    }
 }
 
 // Task state segment format
@@ -42,8 +84,8 @@ pub struct TaskState {
     ss1: u16,
     padding2: u16,
     esp2: *const u32,
-    ss2: u32,
-    padding3: u32,
+    ss2: u16,
+    padding3: u16,
     cr3: *const c_void, // Page directory base
     eip: *const u32,    // Saved state from last task switch
     eflags: u32,

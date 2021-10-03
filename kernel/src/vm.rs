@@ -5,8 +5,11 @@ use crate::{
     fs::read_inode,
     kalloc::{kalloc, kalloc_zeroed, kfree},
     memlayout::{p2v, v2p, DEVSPACE, EXTMEM, KERNBASE, KERNLINK, PHYSTOP},
-    mmu::{pg_address, pg_rounddown, pg_roundup, NPDENTRIES, PGSIZE},
-    proc::Process,
+    mmu::{
+        pg_address, pg_rounddown, pg_roundup, SegmentDescriptor, SegmentDescriptorTable,
+        NPDENTRIES, PGSIZE,
+    },
+    proc::{Cpu, Process},
     x86::lcr3,
 };
 
@@ -103,6 +106,35 @@ impl PTE {
 
     pub const fn index(va: usize) -> usize {
         (va >> 12) & 0x3ff
+    }
+}
+
+// Set up CPU's kernel segment descriptors.
+// Run once on entry on each CPU.
+#[no_mangle]
+pub fn seginit() {
+    extern "C" {
+        fn mycpu() -> *mut Cpu;
+    }
+
+    // Application segment type bits
+    const STA_X: u8 = 0x8; // Executable segment
+    const STA_W: u8 = 0x2; // Writeable (non-executable segments)
+    const STA_R: u8 = 0x2; // Readable (executable segments)
+
+    const DPL_USER: u8 = 0x3; // User DPL
+
+    // Map "logical" addresses to virtual addresses using identity map.
+    // Cannot share a CODE descriptor for both kernel and user
+    // because it would have to have DPL_USR, but the CPU forbids
+    // an interrupt from CPL=0 to DPL=3.
+    unsafe {
+        let cpu = mycpu();
+        (*cpu).gdt.kernel_code = SegmentDescriptor::new(STA_X | STA_R, 0, 0xffffffff, 0);
+        (*cpu).gdt.kernel_data = SegmentDescriptor::new(STA_W, 0, 0xffffffff, 0);
+        (*cpu).gdt.user_code = SegmentDescriptor::new(STA_X | STA_R, 0, 0xffffffff, DPL_USER);
+        (*cpu).gdt.user_data = SegmentDescriptor::new(STA_W, 0, 0xffffffff, DPL_USER);
+        (*cpu).gdt.load();
     }
 }
 

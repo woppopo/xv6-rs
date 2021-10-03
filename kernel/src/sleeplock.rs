@@ -7,6 +7,6 @@ pub struct SleepLock {
     lk: SpinLock, // spinlock protecting this sleep lock
 
     // For debugging:
-    name: *const char, // Name of lock.
-    pid: i32,          // Process holding lock
+    name: *const i8, // Name of lock.
+    pid: i32,        // Process holding lock
 }

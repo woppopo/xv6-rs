@@ -2,7 +2,7 @@ use core::ffi::c_void;
 
 use crate::{
     file::{File, INode},
-    mmu::{SegmentDescriptor, TaskState, NSEGS},
+    mmu::{SegmentDescriptor, SegmentDescriptorTable, TaskState, NSEGS},
     param::NOFILE,
     vm::PDE,
     x86::TrapFrame,
@@ -14,7 +14,7 @@ pub struct Cpu {
     apicid: u8,                      // Local APIC ID
     scheduler: *const Context,       // swtch() here to enter scheduler
     ts: TaskState,                   // Used by x86 to find stack for interrupt
-    gdt: [SegmentDescriptor; NSEGS], // x86 global descriptor table
+    pub gdt: SegmentDescriptorTable, // x86 global descriptor table
     started: u32,                    // Has the CPU started?
     ncli: i32,                       // Depth of pushcli nesting.
     intena: i32,                     // Were interrupts enabled before pushcli?
@@ -41,7 +41,7 @@ pub struct Context {
 }
 
 #[repr(C)]
-enum ProcessState {
+pub enum ProcessState {
     Unused,
     Embryo,
     Sleeping,
@@ -65,5 +65,5 @@ pub struct Process {
     killed: i32,             // If non-zero, have been killed
     ofile: [File; NOFILE],   // Open files
     cwd: *const INode,       // Current directory
-    name: [char; 16],        // Process name (debugging)
+    name: [i8; 16],          // Process name (debugging)
 }

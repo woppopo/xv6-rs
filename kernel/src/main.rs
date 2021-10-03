@@ -72,7 +72,7 @@ unsafe extern "C" fn main() {
     use crate::memlayout::{p2v, PHYSTOP};
     use crate::picirq::picinit;
     use crate::uart::uartinit;
-    use crate::vm::kvm_alloc;
+    use crate::vm::{kvm_alloc, seginit};
 
     extern "C" {
         static ioapicid: u8;
@@ -80,7 +80,6 @@ unsafe extern "C" fn main() {
         fn end(); // first address after kernel loaded from ELF file
         fn kinit1(vstart: *const u8, vend: *const u8);
         fn mpinit();
-        fn seginit();
         fn consoleinit();
         fn pinit();
         fn tvinit();
