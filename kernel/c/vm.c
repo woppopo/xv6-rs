@@ -7,9 +7,6 @@
 #include "proc.h"
 #include "elf.h"
 
-extern char data[]; // defined by kernel.ld
-pde_t *kpgdir;      // for use in scheduler()
-
 // Set up CPU's kernel segment descriptors.
 // Run once on entry on each CPU.
 void seginit(void)

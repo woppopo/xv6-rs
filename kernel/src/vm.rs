@@ -252,15 +252,13 @@ fn kvm_setup() -> Option<*mut PDE> {
     Some(pgdir)
 }
 
-extern "C" {
-    static mut kpgdir: *mut PDE;
-}
+static mut KPGDIR: usize = 0;
 
 // Allocate one page table for the machine for the kernel address
 // space for scheduler processes.
 pub fn kvm_alloc() {
     unsafe {
-        kpgdir = kvm_setup().expect("");
+        KPGDIR = kvm_setup().expect("") as usize;
     }
     kvm_switch();
 }
@@ -269,7 +267,7 @@ pub fn kvm_alloc() {
 // for when no process is running.
 fn kvm_switch() {
     unsafe {
-        lcr3(v2p(kpgdir as usize) as u32); // switch to the kernel page table
+        lcr3(v2p(KPGDIR) as u32); // switch to the kernel page table
     }
 }
 

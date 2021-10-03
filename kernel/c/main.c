@@ -6,8 +6,6 @@
 #include "proc.h"
 #include "x86.h"
 
-extern pde_t *kpgdir;
-
 // Common CPU setup code.
 void mpmain(void)
 {
