@@ -1,17 +1,3 @@
-pub unsafe fn inb(port: u16) -> u8 {
-    let mut val;
-    asm!("in al, dx", out("al") val, in("dx") port, options(nostack));
-    val
-}
-
-pub unsafe fn outb(port: u16, val: u8) {
-    asm!("out dx, al", in("dx") port, in("al") val, options(nostack));
-}
-
-pub unsafe fn lcr3(val: u32) {
-    asm!("mov cr3, {0}", in(reg) val, options(nostack));
-}
-
 // Layout of the trap frame built on the stack by the
 // hardware and by trapasm.S, and passed to trap().
 #[repr(C)]
@@ -48,4 +34,22 @@ pub struct TrapFrame {
     esp: u32,
     ss: u16,
     padding6: u16,
+}
+
+pub unsafe fn inb(port: u16) -> u8 {
+    let mut val;
+    asm!("in al, dx", out("al") val, in("dx") port, options(nostack));
+    val
+}
+
+pub unsafe fn outb(port: u16, val: u8) {
+    asm!("out dx, al", in("dx") port, in("al") val, options(nostack));
+}
+
+pub unsafe fn lcr3(val: usize) {
+    asm!("mov cr3, {0}", in(reg) val, options(nostack));
+}
+
+pub unsafe fn ltr(selector: u16) {
+    asm!("ltr ax", in("ax") selector, options(nostack));
 }

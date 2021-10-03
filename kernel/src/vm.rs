@@ -6,11 +6,13 @@ use crate::{
     kalloc::{kalloc, kalloc_zeroed, kfree},
     memlayout::{p2v, v2p, DEVSPACE, EXTMEM, KERNBASE, KERNLINK, PHYSTOP},
     mmu::{
-        pg_address, pg_rounddown, pg_roundup, SegmentDescriptor, SegmentDescriptorTable,
+        pg_address, pg_rounddown, pg_roundup, SegmentDescriptor, SegmentDescriptorTable, TaskState,
         NPDENTRIES, PGSIZE,
     },
-    proc::{Cpu, Process},
-    x86::lcr3,
+    param::KSTACKSIZE,
+    proc::{mycpu, Process},
+    spinlock::{popcli, pushcli},
+    x86::{lcr3, ltr},
 };
 
 #[repr(transparent)]
@@ -113,10 +115,6 @@ impl PTE {
 // Run once on entry on each CPU.
 #[no_mangle]
 pub fn seginit() {
-    extern "C" {
-        fn mycpu() -> *mut Cpu;
-    }
-
     // Application segment type bits
     const STA_X: u8 = 0x8; // Executable segment
     const STA_W: u8 = 0x2; // Writeable (non-executable segments)
@@ -299,7 +297,7 @@ pub fn kvm_alloc() {
 // for when no process is running.
 fn kvm_switch() {
     unsafe {
-        lcr3(v2p(KPGDIR) as u32); // switch to the kernel page table
+        lcr3(v2p(KPGDIR)); // switch to the kernel page table
     }
 }
 
@@ -414,6 +412,43 @@ fn uvm_dealloc(pgdir: *mut PDE, size_old: usize, size_new: usize) -> usize {
     }
 
     size_new
+}
+
+// Switch TSS and h/w page table to correspond to process p.
+fn uvm_switch(proc: *mut Process) {
+    if proc.is_null() {
+        panic!("uvm_switch: no process");
+    }
+
+    if unsafe { (*proc).kstack.is_null() } {
+        panic!("uvm_switch: no kstack");
+    }
+
+    if unsafe { (*proc).pgdir.is_null() } {
+        panic!("uvm_switch: no kstack");
+    }
+
+    unsafe {
+        const STS_T32A: u8 = 0x9; // Available 32-bit TSS
+
+        pushcli();
+        let cpu = mycpu();
+        (*cpu).gdt.task_state = SegmentDescriptor::new16(
+            STS_T32A,
+            &(*cpu).ts as *const _ as _,
+            (core::mem::size_of::<TaskState>() - 1) as u32,
+            0,
+            false,
+        );
+        (*cpu).ts.ss0 = SegmentDescriptorTable::KERNEL_DATA_SELECTOR;
+        (*cpu).ts.esp0 = (*proc).kstack as u32 + KSTACKSIZE as u32;
+        // setting IOPL=0 in eflags *and* iomb beyond the tss segment limit
+        // forbids I/O instructions (e.g., inb and outb) from user space
+        (*cpu).ts.iomb = 0xffff;
+        ltr(SegmentDescriptorTable::TASK_STATE_SELECTOR);
+        lcr3(v2p((*proc).pgdir as usize)); // switch to process's address space
+        popcli()
+    }
 }
 
 // Free a page table and all the physical memory pages
@@ -576,6 +611,11 @@ mod _binding {
     #[no_mangle]
     extern "C" fn deallocuvm(pgdir: *mut PDE, oldsz: u32, newsz: u32) -> i32 {
         uvm_dealloc(pgdir, oldsz as usize, newsz as usize) as i32
+    }
+
+    #[no_mangle]
+    extern "C" fn switchuvm(proc: *mut Process) {
+        uvm_switch(proc);
     }
 
     #[no_mangle]

@@ -52,7 +52,6 @@ fn main() {
         "sysfile",
         "sysproc",
         "trap",
-        "vm",
     ];
     for file in c_files {
         build

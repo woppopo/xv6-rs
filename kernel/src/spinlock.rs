@@ -11,3 +11,8 @@ pub struct SpinLock {
     pcs: [u32; 10],  // The call stack (an array of program counters)
                      // that locked the lock.
 }
+
+extern "C" {
+    pub fn pushcli();
+    pub fn popcli();
+}

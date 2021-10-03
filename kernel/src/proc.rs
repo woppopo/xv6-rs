@@ -2,7 +2,7 @@ use core::ffi::c_void;
 
 use crate::{
     file::{File, INode},
-    mmu::{SegmentDescriptor, SegmentDescriptorTable, TaskState, NSEGS},
+    mmu::{SegmentDescriptorTable, TaskState},
     param::NOFILE,
     vm::PDE,
     x86::TrapFrame,
@@ -13,7 +13,7 @@ use crate::{
 pub struct Cpu {
     apicid: u8,                      // Local APIC ID
     scheduler: *const Context,       // swtch() here to enter scheduler
-    ts: TaskState,                   // Used by x86 to find stack for interrupt
+    pub ts: TaskState,               // Used by x86 to find stack for interrupt
     pub gdt: SegmentDescriptorTable, // x86 global descriptor table
     started: u32,                    // Has the CPU started?
     ncli: i32,                       // Depth of pushcli nesting.
@@ -54,8 +54,8 @@ pub enum ProcessState {
 #[repr(C)]
 pub struct Process {
     sz: u32,                 // Size of process memory (bytes)
-    pgdir: *const PDE,       // Page table
-    kstack: *const u8,       // Bottom of kernel stack for this process
+    pub pgdir: *const PDE,   // Page table
+    pub kstack: *const u8,   // Bottom of kernel stack for this process
     state: ProcessState,     // Process state
     pid: i32,                // Process ID
     parent: *const Self,     // Parent process
@@ -66,4 +66,8 @@ pub struct Process {
     ofile: [File; NOFILE],   // Open files
     cwd: *const INode,       // Current directory
     name: [i8; 16],          // Process name (debugging)
+}
+
+extern "C" {
+    pub fn mycpu() -> *mut Cpu;
 }
