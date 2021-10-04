@@ -1,3 +1,5 @@
+// See MultiProcessor Specification Version 1.[14]
+
 use core::ffi::c_void;
 
 use crate::{
@@ -8,14 +10,12 @@ use crate::{
     CPUS, IOAPICID, LAPIC, NCPU,
 };
 
-// See MultiProcessor Specification Version 1.[14]
-
 // Table entry types
-pub const MPPROC: u8 = 0x00; // One per processor
-pub const MPBUS: u8 = 0x01; // One per bus
-pub const MPIOAPIC: u8 = 0x02; // One per I/O APIC
-pub const MPIOINTR: u8 = 0x03; // One per bus interrupt source
-pub const MPLINTR: u8 = 0x04; // One per system interrupt source
+const MPPROC: u8 = 0x00; // One per processor
+const MPBUS: u8 = 0x01; // One per bus
+const MPIOAPIC: u8 = 0x02; // One per I/O APIC
+const MPIOINTR: u8 = 0x03; // One per bus interrupt source
+const MPLINTR: u8 = 0x04; // One per system interrupt source
 
 // floating pointer
 #[repr(C)]
@@ -31,9 +31,10 @@ pub struct MP {
 }
 
 impl MP {
+    const SIGN: [u8; 4] = ['_' as u8, 'M' as u8, 'P' as u8, '_' as u8];
+
     pub fn is_valid(&self) -> bool {
-        const SIGN: [u8; 4] = ['_' as u8, 'M' as u8, 'P' as u8, '_' as u8];
-        self.signature == SIGN && sum(self) == 0
+        self.signature == Self::SIGN && sum(self) == 0
     }
 }
 
@@ -55,9 +56,10 @@ pub struct MPConf {
 }
 
 impl MPConf {
+    const SIGN: [u8; 4] = ['P' as u8, 'C' as u8, 'M' as u8, 'P' as u8];
+
     pub fn is_valid(&self) -> bool {
-        const SIGN: [u8; 4] = ['P' as u8, 'C' as u8, 'M' as u8, 'P' as u8];
-        self.signature == SIGN
+        self.signature == Self::SIGN
             && (self.version == 1 || self.version == 4)
             && sum_by_length(self as *const _ as usize, self.length as usize) == 0
     }
@@ -185,28 +187,5 @@ pub unsafe fn mp_init() {
         // But it would on real hardware.
         outb(0x22, 0x70); // Select IMCR
         outb(0x23, inb(0x23) | 1); // Mask external interrupts.
-    }
-}
-
-mod _binding {
-    use super::*;
-
-    #[no_mangle]
-    extern "C" fn mpsearch() -> *const MP {
-        match mp_search() {
-            Some(ptr) => ptr as *const MP,
-            None => core::ptr::null(),
-        }
-    }
-
-    #[no_mangle]
-    extern "C" fn mpconfig(pmp: *mut *const MP) -> *const MPConf {
-        match mp_config() {
-            Some((mp, conf)) => unsafe {
-                *pmp = mp;
-                conf
-            },
-            None => core::ptr::null(),
-        }
     }
 }

@@ -553,27 +553,8 @@ mod _binding {
     use super::*;
 
     #[no_mangle]
-    extern "C" fn walkpgdir(pgdir: *mut PDE, va: *const c_void, alloc: u32) -> *mut PTE {
-        unsafe { walk_pgdir(pgdir, va as usize, alloc != 0) }.unwrap_or(core::ptr::null_mut())
-    }
-
-    #[no_mangle]
-    extern "C" fn mappages(pde: *mut PDE, va: *const c_void, size: u32, pa: u32, perm: u32) -> i32 {
-        let map = unsafe { map_pages(pde, va as usize, size as usize, pa as usize, perm) };
-        match map {
-            true => 0,
-            false => -1,
-        }
-    }
-
-    #[no_mangle]
     extern "C" fn setupkvm() -> *mut PDE {
         kvm_setup().unwrap_or(core::ptr::null_mut())
-    }
-
-    #[no_mangle]
-    extern "C" fn kvmalloc() {
-        kvm_alloc()
     }
 
     #[no_mangle]
@@ -634,14 +615,6 @@ mod _binding {
         match pde {
             Some(pde) => pde,
             None => core::ptr::null_mut(),
-        }
-    }
-
-    #[no_mangle]
-    extern "C" fn uva2ka(pgdir: *mut PDE, uva: *const i8) -> *const i8 {
-        match uva_to_ka(pgdir, uva as usize) {
-            Some(addr) => addr as *const i8,
-            None => core::ptr::null(),
         }
     }
 
