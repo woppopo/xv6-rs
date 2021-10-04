@@ -53,3 +53,17 @@ pub unsafe fn lcr3(val: usize) {
 pub unsafe fn ltr(selector: u16) {
     asm!("ltr ax", in("ax") selector, options(nostack));
 }
+
+pub unsafe fn readeflags() -> u32 {
+    let mut eflags;
+    asm!("pushfd; pop {0}", out(reg) eflags);
+    eflags
+}
+
+pub unsafe fn cli() {
+    asm!("cli");
+}
+
+pub unsafe fn sti() {
+    asm!("sti");
+}

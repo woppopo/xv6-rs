@@ -12,7 +12,7 @@ use crate::{
     },
     param::KSTACKSIZE,
     proc::{mycpu, Process},
-    spinlock::{popcli, pushcli},
+    spinlock::free_from_interrupt,
     x86::{lcr3, ltr},
 };
 
@@ -423,23 +423,23 @@ fn uvm_switch(proc: *mut Process) {
     unsafe {
         const STS_T32A: u8 = 0x9; // Available 32-bit TSS
 
-        pushcli();
-        let cpu = mycpu();
-        (*cpu).gdt.task_state = SegmentDescriptor::new16(
-            STS_T32A,
-            &(*cpu).ts as *const _ as _,
-            (core::mem::size_of::<TaskState>() - 1) as u32,
-            0,
-            false,
-        );
-        (*cpu).ts.ss0 = SegmentDescriptorTable::KERNEL_DATA_SELECTOR;
-        (*cpu).ts.esp0 = (*proc).kstack as u32 + KSTACKSIZE as u32;
-        // setting IOPL=0 in eflags *and* iomb beyond the tss segment limit
-        // forbids I/O instructions (e.g., inb and outb) from user space
-        (*cpu).ts.iomb = 0xffff;
-        ltr(SegmentDescriptorTable::TASK_STATE_SELECTOR);
-        lcr3(v2p((*proc).pgdir as usize)); // switch to process's address space
-        popcli()
+        free_from_interrupt(|| {
+            let cpu = mycpu();
+            (*cpu).gdt.task_state = SegmentDescriptor::new16(
+                STS_T32A,
+                &(*cpu).ts as *const _ as _,
+                (core::mem::size_of::<TaskState>() - 1) as u32,
+                0,
+                false,
+            );
+            (*cpu).ts.ss0 = SegmentDescriptorTable::KERNEL_DATA_SELECTOR;
+            (*cpu).ts.esp0 = (*proc).kstack as u32 + KSTACKSIZE as u32;
+            // setting IOPL=0 in eflags *and* iomb beyond the tss segment limit
+            // forbids I/O instructions (e.g., inb and outb) from user space
+            (*cpu).ts.iomb = 0xffff;
+            ltr(SegmentDescriptorTable::TASK_STATE_SELECTOR);
+            lcr3(v2p((*proc).pgdir as usize)); // switch to process's address space
+        });
     }
 }
 

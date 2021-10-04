@@ -366,7 +366,7 @@ scheduler(void)
 void
 sched(void)
 {
-  int intena;
+  uint intena;
   struct proc *p = myproc();
 
   if(!holding(&ptable.lock))

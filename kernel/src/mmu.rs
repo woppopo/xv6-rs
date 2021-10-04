@@ -1,4 +1,10 @@
+// This file contains definitions for the
+// x86 memory management unit (MMU).
+
 use core::ffi::c_void;
+
+// Eflags register
+pub const FL_IF: u32 = 0x00000200; // Interrupt Enable
 
 // Page directory and page table constants.
 pub const NPDENTRIES: usize = 1024; // # directory entries per page directory

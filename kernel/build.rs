@@ -45,7 +45,6 @@ fn main() {
         "pipe",
         "proc",
         "sleeplock",
-        "spinlock",
         "string",
         "syscall",
         "sysfile",

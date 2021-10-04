@@ -19,6 +19,7 @@ mod fs;
 mod ioapic;
 mod kalloc;
 mod lapic;
+mod log;
 mod memlayout;
 mod mmu;
 mod mp;
