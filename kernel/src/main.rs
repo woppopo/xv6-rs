@@ -17,6 +17,7 @@ mod kalloc;
 mod lapic;
 mod memlayout;
 mod mmu;
+mod mp;
 mod param;
 mod picirq;
 mod pipe;
