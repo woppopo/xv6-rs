@@ -13,6 +13,7 @@ use param::MAXCPU;
 use proc::Cpu;
 use vm::PDE;
 
+mod buf;
 mod console;
 mod file;
 mod fs;
