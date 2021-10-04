@@ -38,16 +38,16 @@ impl SpinLock {
 
         assert!(!self.is_locked());
 
-        while unsafe {
-            self.locked
-                .compare_exchange_weak(
-                    0,
-                    1,
-                    core::sync::atomic::Ordering::SeqCst,
-                    core::sync::atomic::Ordering::Relaxed,
-                )
-                .is_err()
-        } {}
+        while self
+            .locked
+            .compare_exchange_weak(
+                0,
+                1,
+                core::sync::atomic::Ordering::SeqCst,
+                core::sync::atomic::Ordering::Relaxed,
+            )
+            .is_err()
+        {}
 
         // Record info about lock acquisition for debugging.
         self.cpu = unsafe { mycpu() };
@@ -137,7 +137,7 @@ mod _binding {
     use super::*;
 
     #[no_mangle]
-    extern "C" fn initlock(lk: *mut SpinLock, name: *const i8) {
+    extern "C" fn initlock(lk: *mut SpinLock, _name: *const i8) {
         unsafe {
             *lk = SpinLock::new();
         }
@@ -178,15 +178,11 @@ mod _binding {
 
     #[no_mangle]
     extern "C" fn pushcli() {
-        unsafe {
-            push_cli();
-        }
+        push_cli();
     }
 
     #[no_mangle]
     extern "C" fn popcli() {
-        unsafe {
-            pop_cli();
-        }
+        pop_cli();
     }
 }

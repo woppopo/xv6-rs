@@ -17,6 +17,7 @@ mod buf;
 mod console;
 mod file;
 mod fs;
+mod ide;
 mod ioapic;
 mod kalloc;
 mod lapic;
