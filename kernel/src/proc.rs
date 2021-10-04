@@ -4,6 +4,7 @@ use crate::{
     file::{File, INode},
     mmu::{SegmentDescriptorTable, TaskState},
     param::NOFILE,
+    spinlock::SpinLock,
     vm::PDE,
     x86::TrapFrame,
 };
@@ -57,7 +58,7 @@ pub struct Process {
     pub pgdir: *const PDE,   // Page table
     pub kstack: *const u8,   // Bottom of kernel stack for this process
     state: ProcessState,     // Process state
-    pid: i32,                // Process ID
+    pub pid: i32,            // Process ID
     parent: *const Self,     // Parent process
     tf: *const TrapFrame,    // Trap frame for current syscall
     context: *const Context, // swtch() here to run process
@@ -70,4 +71,7 @@ pub struct Process {
 
 extern "C" {
     pub fn mycpu() -> *mut Cpu;
+    pub fn myproc() -> *mut Process;
+    pub fn wakeup(chan: *const c_void);
+    pub fn sleep(chan: *const c_void, lk: *const SpinLock);
 }
