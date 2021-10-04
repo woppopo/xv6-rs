@@ -20,7 +20,7 @@ void mpenter(void)
 {
   switchkvm();
   seginit();
-  lapicinit(lapic);
+  lapicinit(LAPIC);
   mpmain();
 }
 
@@ -41,7 +41,7 @@ void startothers(void)
   code = P2V(0x7000);
   memmove(code, _binary_entryother_start, (uint)_binary_entryother_size);
 
-  for (c = cpus; c < cpus + ncpu; c++)
+  for (c = CPUS; c < CPUS + NCPU; c++)
   {
     if (c == mycpu()) // We've started already.
       continue;

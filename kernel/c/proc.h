@@ -10,8 +10,8 @@ struct cpu {
   struct proc *proc;           // The process running on this cpu or null
 };
 
-extern struct cpu cpus[NCPU];
-extern int ncpu;
+extern struct cpu CPUS[MAXCPU];
+extern int NCPU;
 
 //PAGEBREAK: 17
 // Saved registers for kernel context switches.

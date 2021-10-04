@@ -6,7 +6,11 @@
 #![feature(const_panic)]
 #![feature(const_size_of_val)]
 
+use core::mem::MaybeUninit;
+
 use mmu::NPDENTRIES;
+use param::MAXCPU;
+use proc::Cpu;
 use vm::PDE;
 
 mod console;
@@ -73,6 +77,22 @@ static _binary_entryother_size: usize = ENTRYOTHER.len();
 #[no_mangle]
 static ENTRYPGDIR: Align4096<[PDE; NPDENTRIES]> = entrypgdir();
 
+#[used]
+#[no_mangle]
+static mut CPUS: MaybeUninit<[Cpu; MAXCPU]> = MaybeUninit::uninit();
+
+#[used]
+#[no_mangle]
+static mut NCPU: usize = 0;
+
+#[used]
+#[no_mangle]
+static mut IOAPICID: u8 = 0;
+
+#[used]
+#[no_mangle]
+static mut LAPIC: *mut u32 = core::ptr::null_mut();
+
 // The boot page table used in entry.S and entryother.S.
 // Page directories (and page tables) must start on page boundaries,
 // hence the __aligned__ attribute.
@@ -96,16 +116,15 @@ unsafe extern "C" fn main() {
     use crate::ioapic::ioapicinit;
     use crate::lapic::lapicinit;
     use crate::memlayout::{p2v, PHYSTOP};
+    use crate::mp::mp_init;
     use crate::picirq::picinit;
     use crate::uart::uartinit;
     use crate::vm::{kvm_alloc, seginit};
 
     extern "C" {
-        static ioapicid: u8;
-        static lapic: *mut u32;
         fn end(); // first address after kernel loaded from ELF file
         fn kinit1(vstart: *const u8, vend: *const u8);
-        fn mpinit();
+
         fn consoleinit();
         fn pinit();
         fn tvinit();
@@ -120,11 +139,11 @@ unsafe extern "C" fn main() {
 
     kinit1(end as _, p2v(4 * 1024 * 1024) as _); // phys page allocator
     kvm_alloc(); // kernel page table
-    mpinit(); // detect other processors
-    lapicinit(lapic); // interrupt controller
+    mp_init(); // detect other processors
+    lapicinit(LAPIC); // interrupt controller
     seginit(); // segment descriptors
     picinit(); // disable pic
-    ioapicinit(ioapicid); // another interrupt controller
+    ioapicinit(IOAPICID); // another interrupt controller
     consoleinit(); // console hardware
     uartinit(); // serial port
     pinit(); // process table

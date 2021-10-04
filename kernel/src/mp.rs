@@ -1,15 +1,21 @@
 use core::ffi::c_void;
 
-use crate::memlayout::p2v;
+use crate::{
+    memlayout::p2v,
+    param::MAXCPU,
+    proc::Cpu,
+    x86::{inb, outb},
+    CPUS, IOAPICID, LAPIC, NCPU,
+};
 
 // See MultiProcessor Specification Version 1.[14]
 
 // Table entry types
-pub const MPPROC: usize = 0x00; // One per processor
-pub const MPBUS: usize = 0x01; // One per bus
-pub const MPIOAPIC: usize = 0x02; // One per I/O APIC
-pub const MPIOINTR: usize = 0x03; // One per bus interrupt source
-pub const MPLINTR: usize = 0x04; // One per system interrupt source
+pub const MPPROC: u8 = 0x00; // One per processor
+pub const MPBUS: u8 = 0x01; // One per bus
+pub const MPIOAPIC: u8 = 0x02; // One per I/O APIC
+pub const MPIOINTR: u8 = 0x03; // One per bus interrupt source
+pub const MPLINTR: u8 = 0x04; // One per system interrupt source
 
 // floating pointer
 #[repr(C)]
@@ -34,17 +40,17 @@ impl MP {
 // configuration table header
 #[repr(C)]
 pub struct MPConf {
-    signature: [u8; 4],    // "PCMP"
-    length: u16,           // total table length
-    version: u8,           // [14]
-    checksum: u8,          // all bytes must add up to 0
-    product: [u8; 20],     // product id
-    oemtable: *const u32,  // OEM table pointer
-    oemlength: u16,        // OEM table length
-    entry: u16,            // entry count
-    lapicaddr: *const u32, // address of local APIC
-    xlength: u16,          // extended table length
-    xchecksum: u8,         // extended table checksum
+    signature: [u8; 4],   // "PCMP"
+    length: u16,          // total table length
+    version: u8,          // [14]
+    checksum: u8,         // all bytes must add up to 0
+    product: [u8; 20],    // product id
+    oemtable: *const u32, // OEM table pointer
+    oemlength: u16,       // OEM table length
+    entry: u16,           // entry count
+    lapicaddr: *mut u32,  // address of local APIC
+    xlength: u16,         // extended table length
+    xchecksum: u8,        // extended table checksum
     reserved: u8,
 }
 
@@ -58,6 +64,7 @@ impl MPConf {
 }
 
 // processor table entry
+#[repr(C)]
 pub struct MPProc {
     ty: u8,             // entry type (0)
     apicid: u8,         // local APIC id
@@ -73,6 +80,7 @@ impl MPProc {
 }
 
 // I/O APIC table entry
+#[repr(C)]
 pub struct MPIOApic {
     ty: u8,           // entry type (2)
     apicno: u8,       // I/O APIC id
@@ -142,6 +150,41 @@ fn mp_config() -> Option<(&'static MP, &'static MPConf)> {
             true => Some((mp, &(*conf))),
             false => None,
         }
+    }
+}
+
+pub unsafe fn mp_init() {
+    let (mp, conf) = mp_config().expect("Expect to run on an SMP");
+    LAPIC = conf.lapicaddr;
+
+    let mut ptr = (conf as *const MPConf).add(1) as usize;
+    while ptr < (conf as *const _ as usize) + (conf.length as usize) {
+        match *(ptr as *const u8) {
+            MPPROC => {
+                let proc = &*(ptr as *const MPProc);
+                if (NCPU as usize) < MAXCPU {
+                    CPUS.assume_init_mut()[NCPU as usize].apicid = proc.apicid; // apicid may differ from NCPU
+                    NCPU += 1;
+                }
+                ptr += core::mem::size_of::<MPProc>();
+            }
+            MPIOAPIC => {
+                let ioapic = &*(ptr as *const MPIOApic);
+                IOAPICID = ioapic.apicno;
+                ptr += core::mem::size_of::<MPIOApic>();
+            }
+            MPBUS | MPIOINTR | MPLINTR => {
+                ptr += 8;
+            }
+            _ => panic!("Didn't find a suitable machine"),
+        }
+    }
+
+    if mp.imcrp != 0 {
+        // Bochs doesn't support IMCR, so this doesn't run on Bochs.
+        // But it would on real hardware.
+        outb(0x22, 0x70); // Select IMCR
+        outb(0x23, inb(0x23) | 1); // Mask external interrupts.
     }
 }
 

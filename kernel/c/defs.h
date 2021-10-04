@@ -60,7 +60,7 @@ void            iderw(struct buf*);
 
 // ioapic.rs
 void            ioapicenable(uint irq, uint cpu);
-extern uchar    ioapicid;
+extern uchar    IOAPICID;
 
 // kalloc.c
 char*           kalloc(void);
@@ -74,7 +74,7 @@ void            kbdintr(void);
 // lapic.rs
 void            lapicinit(volatile uint*);
 int             lapicid(void);
-extern volatile uint*    lapic;
+extern volatile uint*    LAPIC;
 void            lapiceoi(void);
 void            lapicstartap(uchar, uint);
 void            microdelay(int);

@@ -29,18 +29,18 @@ a cli before the mov tf, %esp.
 
 In pushcli, must cli() no matter what.  It is not safe to do
 
-  if(cpus[cpu()].ncli == 0)
+  if(CPUS[cpu()].ncli == 0)
     cli();
-  cpus[cpu()].ncli++;
+  CPUS[cpu()].ncli++;
 
 because if interrupts are off then we might call cpu(), get
-rescheduled to a different cpu, look at cpus[oldcpu].ncli,
+rescheduled to a different cpu, look at CPUS[oldcpu].ncli,
 and wrongly decide not to disable interrupts on the new cpu.
 
 Instead do 
 
   cli();
-  cpus[cpu()].ncli++;
+  CPUS[cpu()].ncli++;
 
 always.
 

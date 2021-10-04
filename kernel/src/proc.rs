@@ -11,7 +11,7 @@ use crate::{
 // Per-CPU state
 #[repr(C)]
 pub struct Cpu {
-    apicid: u8,                      // Local APIC ID
+    pub apicid: u8,                  // Local APIC ID
     scheduler: *const Context,       // swtch() here to enter scheduler
     pub ts: TaskState,               // Used by x86 to find stack for interrupt
     pub gdt: SegmentDescriptorTable, // x86 global descriptor table

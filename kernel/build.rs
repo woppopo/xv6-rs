@@ -42,7 +42,6 @@ fn main() {
         "kbd",
         "log",
         "main",
-        "mp",
         "pipe",
         "proc",
         "sleeplock",
