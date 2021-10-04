@@ -15,7 +15,7 @@
 # It copies this code (start) at 0x7000.  It puts the address of
 # a newly allocated per-core stack in start-4,the address of the
 # place to jump to (mpenter) in start-8, and the physical address
-# of entrypgdir in start-12.
+# of ENTRYPGDIR in start-12.
 #
 # This code combines elements of bootasm.S and entry.S.
 
@@ -59,7 +59,7 @@ start32:
   movl    %cr4, %eax
   orl     $(CR4_PSE), %eax
   movl    %eax, %cr4
-  # Use entrypgdir as our initial page table
+  # Use ENTRYPGDIR as our initial page table
   movl    (start-12), %eax
   movl    %eax, %cr3
   # Turn on paging.

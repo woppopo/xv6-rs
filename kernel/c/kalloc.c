@@ -24,8 +24,8 @@ struct {
 } kmem;
 
 // Initialization happens in two phases.
-// 1. main() calls kinit1() while still using entrypgdir to place just
-// the pages mapped by entrypgdir on free list.
+// 1. main() calls kinit1() while still using ENTRYPGDIR to place just
+// the pages mapped by ENTRYPGDIR on free list.
 // 2. main() calls kinit2() with the rest of the physical pages
 // after installing a full page table that maps them on all cores.
 void

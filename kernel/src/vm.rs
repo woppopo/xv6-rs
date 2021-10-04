@@ -19,12 +19,12 @@ use crate::{
 pub struct PDE(u32);
 
 impl PDE {
-    const NULL: Self = Self(0);
+    pub const NULL: Self = Self(0);
 
-    const P: u32 = 0x001;
-    const W: u32 = 0x002;
-    const U: u32 = 0x004;
-    const PS: u32 = 0x080;
+    pub const P: u32 = 0x001;
+    pub const W: u32 = 0x002;
+    pub const U: u32 = 0x004;
+    pub const PS: u32 = 0x080;
 
     pub const fn new(addr: usize, flags: u32) -> Self {
         assert!(core::mem::size_of_val(&addr) == core::mem::size_of::<u32>());
@@ -64,15 +64,15 @@ impl PDE {
 }
 
 #[repr(transparent)]
-struct PTE(u32);
+pub struct PTE(u32);
 
 impl PTE {
-    const NULL: Self = Self(0);
+    pub const NULL: Self = Self(0);
 
-    const P: u32 = 0x001;
-    const W: u32 = 0x002;
-    const U: u32 = 0x004;
-    const PS: u32 = 0x080;
+    pub const P: u32 = 0x001;
+    pub const W: u32 = 0x002;
+    pub const U: u32 = 0x004;
+    pub const PS: u32 = 0x080;
 
     pub const fn new(addr: usize, flags: u32) -> Self {
         assert!(core::mem::size_of_val(&addr) == core::mem::size_of::<u32>());
