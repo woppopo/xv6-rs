@@ -93,6 +93,10 @@ static mut IOAPICID: u8 = 0;
 #[no_mangle]
 static mut LAPIC: *mut u32 = core::ptr::null_mut();
 
+extern "C" {
+    pub fn data();
+}
+
 // The boot page table used in entry.S and entryother.S.
 // Page directories (and page tables) must start on page boundaries,
 // hence the __aligned__ attribute.

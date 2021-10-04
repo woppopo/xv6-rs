@@ -1,4 +1,7 @@
-use crate::x86::{inb, outb};
+use crate::{
+    console::consoleintr,
+    x86::{inb, outb},
+};
 
 const COM1: u16 = 0x3f8;
 
@@ -73,10 +76,6 @@ extern "C" fn uartgetc() -> u32 {
 
 #[no_mangle]
 pub extern "C" fn uartintr() {
-    extern "C" {
-        fn consoleintr(handler: extern "C" fn() -> u32);
-    }
-
     unsafe {
         consoleintr(uartgetc);
     }

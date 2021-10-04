@@ -1,6 +1,7 @@
 use core::ffi::c_void;
 
 use crate::{
+    data,
     file::INode,
     fs::read_inode,
     kalloc::{kalloc, kalloc_zeroed, kfree},
@@ -222,10 +223,6 @@ fn kvm_setup() -> Option<*mut PDE> {
         panic!("PHYSTOP too high");
     }
 
-    extern "C" {
-        fn data();
-    }
-
     // This table defines the kernel's mappings, which are present in
     // every process's page table.
     let kmap = [
@@ -269,12 +266,7 @@ fn kvm_setup() -> Option<*mut PDE> {
                 k.perm,
             )
         } {
-            unsafe {
-                extern "C" {
-                    fn freevm(pgdir: *mut PDE);
-                }
-                freevm(pgdir);
-            }
+            vm_free(pgdir);
             return None;
         }
     }
