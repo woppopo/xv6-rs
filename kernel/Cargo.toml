@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2018"
 
 [dependencies]
-heapless = { version = "0.7.7", default-features = false, features = [] }
+arrayvec = { version = "0.7.1", default-features = false, features = [] }
 seq-macro = "0.2.1"
 
 [build-dependencies]

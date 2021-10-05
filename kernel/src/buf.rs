@@ -1,6 +1,6 @@
 use core::mem::MaybeUninit;
 
-use heapless::Vec;
+use arrayvec::ArrayVec;
 
 use crate::{fs::BSIZE, ide::iderw, param::NBUF, sleeplock::SleepLock, spinlock::SpinLock};
 
@@ -11,6 +11,8 @@ pub struct Buffer {
     blockno: usize,
     lock: SleepLock,
     refcnt: u32,
+    prev: *mut Self,
+    next: *mut Self,
     qnext: *mut Self,
     data: [u8; BSIZE],
 }
@@ -26,6 +28,8 @@ impl Buffer {
             blockno,
             lock: SleepLock::new(),
             refcnt: 1,
+            prev: core::ptr::null_mut(),
+            next: core::ptr::null_mut(),
             qnext: core::ptr::null_mut(),
             data: [0; BSIZE],
         }
@@ -55,16 +59,36 @@ impl Buffer {
     }
 }
 
+// Buffer cache.
+//
+// The buffer cache is a linked list of buf structures holding
+// cached copies of disk block contents.  Caching disk blocks
+// in memory reduces the number of disk reads and also provides
+// a synchronization point for disk blocks used by multiple processes.
+//
+// Interface:
+// * To get a buffer for a particular disk block, call bread.
+// * After changing buffer data, call bwrite to write it to disk.
+// * When done with the buffer, call brelse.
+// * Do not use the buffer after calling brelse.
+// * Only one process at a time can use a buffer,
+//     so do not keep them longer than necessary.
+//
+// The implementation uses two state flags internally:
+// * B_VALID: the buffer data has been read from the disk.
+// * B_DIRTY: the buffer data has been modified
+//     and needs to be written to disk.
+
 pub struct BufferCache {
     lock: SpinLock,
-    buffers: Vec<Buffer, NBUF>,
+    buffers: ArrayVec<Buffer, NBUF>,
 }
 
 impl BufferCache {
     pub const fn new() -> Self {
         Self {
             lock: SpinLock::new(),
-            buffers: Vec::new(),
+            buffers: ArrayVec::new_const(),
         }
     }
 
@@ -72,7 +96,7 @@ impl BufferCache {
         let mut buf = Buffer::new(dev, blockno);
         buf.lock.acquire();
 
-        if self.buffers.push(buf).is_err() {
+        if self.buffers.try_push(buf).is_err() {
             panic!("BufferCache::get: no buffer");
         }
 
@@ -84,6 +108,9 @@ impl BufferCache {
     // In either case, return locked buffer.
     pub fn get(&mut self, dev: usize, blockno: usize) -> &mut Buffer {
         self.lock.acquire();
+
+        self.buffers
+            .retain(|buf| buf.refcnt != 0 || buf.flags & Buffer::DIRTY != 0);
 
         let at = self
             .buffers
@@ -121,7 +148,7 @@ impl BufferCache {
     pub fn release_buffer(&mut self, buf: &mut Buffer) {
         self.lock.acquire();
         buf.refcnt -= 1;
-        if buf.refcnt == 0 {
+        if buf.refcnt == 0 && buf.flags & Buffer::DIRTY == 0 {
             let index = self
                 .buffers
                 .iter()
@@ -139,7 +166,6 @@ mod _binding {
 
     static mut CACHE: BufferCache = BufferCache::new();
 
-    /*
     #[no_mangle]
     extern "C" fn binit() {}
 
@@ -166,5 +192,4 @@ mod _binding {
             (*b).release(&mut CACHE);
         }
     }
-     */
 }
