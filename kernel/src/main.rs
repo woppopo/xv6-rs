@@ -135,7 +135,6 @@ unsafe extern "C" fn main() {
         fn consoleinit();
         fn pinit();
         fn tvinit();
-        fn binit();
         fn fileinit();
         fn ideinit();
         fn startothers();
@@ -155,7 +154,6 @@ unsafe extern "C" fn main() {
     uartinit(); // serial port
     pinit(); // process table
     tvinit(); // trap vectors
-    binit(); // buffer cache
     fileinit(); // file table
     ideinit(); // disk
     startothers(); // start other processors
