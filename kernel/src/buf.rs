@@ -2,19 +2,19 @@ use core::mem::MaybeUninit;
 
 use arrayvec::ArrayVec;
 
-use crate::{fs::BSIZE, ide::iderw, param::NBUF, sleeplock::SleepLock, spinlock::SpinLock};
+use crate::{fs::BSIZE, ide::IDE, param::NBUF, sleeplock::SleepLock, spinlock::SpinLock};
 
 #[repr(C)]
 pub struct Buffer {
-    flags: i32,
-    dev: usize,
-    blockno: usize,
-    lock: SleepLock,
+    pub flags: i32,
+    pub dev: usize,
+    pub blockno: usize,
+    pub lock: SleepLock,
     refcnt: u32,
     prev: *mut Self,
     next: *mut Self,
-    qnext: *mut Self,
-    data: [u8; BSIZE],
+    pub qnext: *mut Self,
+    pub data: [u8; BSIZE],
 }
 
 impl Buffer {
@@ -44,7 +44,7 @@ impl Buffer {
         self.flags |= Buffer::DIRTY;
 
         unsafe {
-            iderw(self);
+            IDE.as_mut().unwrap().rw(self);
         }
     }
 
@@ -139,7 +139,7 @@ impl BufferCache {
         let buf = self.get(dev, blockno);
         if buf.flags & Buffer::VALID == 0 {
             unsafe {
-                iderw(buf);
+                IDE.as_mut().unwrap().rw(buf);
             }
         }
         buf

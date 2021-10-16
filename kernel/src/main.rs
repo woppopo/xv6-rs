@@ -3,7 +3,6 @@
 #![feature(asm)]
 #![feature(global_asm)]
 #![feature(naked_functions)]
-#![feature(const_panic)]
 #![feature(const_size_of_val)]
 
 use core::mem::MaybeUninit;
@@ -120,6 +119,7 @@ const fn entrypgdir() -> Align4096<[PDE; NPDENTRIES]> {
 // doing some setup required for memory allocator to work.
 #[no_mangle]
 unsafe extern "C" fn main() {
+    use crate::ide::init_ide;
     use crate::ioapic::ioapicinit;
     use crate::lapic::lapicinit;
     use crate::memlayout::{p2v, PHYSTOP};
@@ -136,7 +136,6 @@ unsafe extern "C" fn main() {
         fn pinit();
         fn tvinit();
         fn fileinit();
-        fn ideinit();
         fn startothers();
         fn kinit2(vstart: *const u8, vend: *const u8);
         fn userinit();
@@ -155,7 +154,7 @@ unsafe extern "C" fn main() {
     pinit(); // process table
     tvinit(); // trap vectors
     fileinit(); // file table
-    ideinit(); // disk
+    init_ide(NCPU); // disk
     startothers(); // start other processors
     kinit2(p2v(4 * 1024 * 1024) as _, p2v(PHYSTOP) as _); // must come after startothers()
     userinit(); // first user process

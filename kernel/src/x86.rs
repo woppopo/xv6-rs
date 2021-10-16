@@ -42,8 +42,24 @@ pub unsafe fn inb(port: u16) -> u8 {
     val
 }
 
+pub unsafe fn insl(port: u16, _addr: *mut u32, mut _count: usize) {
+    asm!("cld; rep insl", in("dx") port, inout("ecx") _count, in("edi") _addr, options(att_syntax))
+}
+
 pub unsafe fn outb(port: u16, val: u8) {
     asm!("out dx, al", in("dx") port, in("al") val, options(nostack));
+}
+
+pub unsafe fn outl(port: u16, val: u32) {
+    asm!("out dx, eax", in("dx") port, in("eax") val, options(nostack));
+}
+
+pub unsafe fn outsl(port: u16, addr: *const u32, count: usize) {
+    //asm!("cld; rep outsl", in("dx") port, inout("ecx") count, in("esi") addr, options(att_syntax));
+    for i in 0..count {
+        let ptr = addr.add(i);
+        outl(port, *ptr);
+    }
 }
 
 pub unsafe fn lcr3(val: usize) {

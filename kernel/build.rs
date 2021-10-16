@@ -32,8 +32,8 @@ fn main() {
     }
 
     let c_files = [
-        "console", "exec", "file", "fs", "ide", "kalloc", "kbd", "log", "main", "pipe", "proc",
-        "string", "syscall", "sysfile", "sysproc", "trap",
+        "console", "exec", "file", "fs", "kalloc", "kbd", "log", "main", "pipe", "proc", "string",
+        "syscall", "sysfile", "sysproc", "trap",
     ];
     for file in c_files {
         build
@@ -47,7 +47,7 @@ fn main() {
     for file in asm_files {
         build
             .clone()
-            .file(&format!("asm/{}.S", file))
+            .file(&format!("c/{}.S", file))
             .compile(&format!("lib{}.a", file));
         println!("cargo:rustc-link-lib=static={}", file);
     }
@@ -60,7 +60,7 @@ fn main() {
 fn initcode(out_path: &PathBuf) {
     Command::new(CC)
         .args(CFLAGS)
-        .args(&["-nostdinc", "-I.", "-c", "asm/initcode.S", "-o"])
+        .args(&["-nostdinc", "-I.", "-c", "c/initcode.S", "-o"])
         .arg(out_path.join("initcode.o"))
         .status()
         .unwrap();
@@ -84,14 +84,7 @@ fn initcode(out_path: &PathBuf) {
 fn entryother(out_path: &PathBuf) {
     Command::new(CC)
         .args(CFLAGS)
-        .args(&[
-            "-fno-pic",
-            "-nostdinc",
-            "-I.",
-            "-c",
-            "asm/entryother.S",
-            "-o",
-        ])
+        .args(&["-fno-pic", "-nostdinc", "-I.", "-c", "c/entryother.S", "-o"])
         .arg(out_path.join("entryother.o"))
         .status()
         .unwrap();
