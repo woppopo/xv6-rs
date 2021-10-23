@@ -6,6 +6,7 @@
 #include "memlayout.h"
 #include "mmu.h"
 #include "proc.h"
+#include "spinlock.h"
 
 int
 sys_fork(void)
@@ -56,6 +57,9 @@ sys_sbrk(void)
   return addr;
 }
 
+extern uint TICKS;
+extern struct spinlock TICKSLOCK;
+
 int
 sys_sleep(void)
 {
@@ -64,16 +68,16 @@ sys_sleep(void)
 
   if(argint(0, &n) < 0)
     return -1;
-  acquire(&tickslock);
-  ticks0 = ticks;
-  while(ticks - ticks0 < n){
+  acquire(&TICKSLOCK);
+  ticks0 = TICKS;
+  while(TICKS - ticks0 < n){
     if(myproc()->killed){
-      release(&tickslock);
+      release(&TICKSLOCK);
       return -1;
     }
-    sleep(&ticks, &tickslock);
+    sleep(&TICKS, &TICKSLOCK);
   }
-  release(&tickslock);
+  release(&TICKSLOCK);
   return 0;
 }
 
@@ -84,8 +88,8 @@ sys_uptime(void)
 {
   uint xticks;
 
-  acquire(&tickslock);
-  xticks = ticks;
-  release(&tickslock);
+  acquire(&TICKSLOCK);
+  xticks = TICKS;
+  release(&TICKSLOCK);
   return xticks;
 }

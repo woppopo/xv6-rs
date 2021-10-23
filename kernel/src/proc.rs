@@ -42,6 +42,7 @@ pub struct Context {
 }
 
 #[repr(C)]
+#[derive(PartialEq)]
 pub enum ProcessState {
     Unused,
     Embryo,
@@ -54,19 +55,19 @@ pub enum ProcessState {
 // Per-process state
 #[repr(C)]
 pub struct Process {
-    sz: u32,                 // Size of process memory (bytes)
-    pub pgdir: *const PDE,   // Page table
-    pub kstack: *const u8,   // Bottom of kernel stack for this process
-    state: ProcessState,     // Process state
-    pub pid: i32,            // Process ID
-    parent: *const Self,     // Parent process
-    tf: *const TrapFrame,    // Trap frame for current syscall
-    context: *const Context, // swtch() here to run process
-    chan: *const c_void,     // If non-zero, sleeping on chan
-    killed: i32,             // If non-zero, have been killed
-    ofile: [File; NOFILE],   // Open files
-    cwd: *const INode,       // Current directory
-    name: [i8; 16],          // Process name (debugging)
+    sz: u32,                  // Size of process memory (bytes)
+    pub pgdir: *const PDE,    // Page table
+    pub kstack: *const u8,    // Bottom of kernel stack for this process
+    pub state: ProcessState,  // Process state
+    pub pid: i32,             // Process ID
+    parent: *const Self,      // Parent process
+    pub tf: *const TrapFrame, // Trap frame for current syscall
+    context: *const Context,  // swtch() here to run process
+    chan: *const c_void,      // If non-zero, sleeping on chan
+    pub killed: i32,          // If non-zero, have been killed
+    ofile: [File; NOFILE],    // Open files
+    cwd: *const INode,        // Current directory
+    name: [i8; 16],           // Process name (debugging)
 }
 
 extern "C" {
@@ -74,4 +75,7 @@ extern "C" {
     pub fn myproc() -> *mut Process;
     pub fn wakeup(chan: *const c_void);
     pub fn sleep(chan: *const c_void, lk: *const SpinLock);
+    pub fn exit();
+    pub fn yield_proc();
+    pub fn cpuid() -> i32;
 }

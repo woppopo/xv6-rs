@@ -207,14 +207,13 @@ pub fn init_ide(ncpu: usize) {
     }
 }
 
+pub fn ide_interrupt() {
+    let ide = unsafe { IDE.as_mut().unwrap() };
+    ide.interrupt_handler();
+}
+
 mod _binding {
     use super::*;
-
-    #[no_mangle]
-    unsafe extern "C" fn ideintr() {
-        let ide = IDE.as_mut().unwrap();
-        ide.interrupt_handler();
-    }
 
     #[no_mangle]
     unsafe extern "C" fn iderw(b: *mut Buffer) {

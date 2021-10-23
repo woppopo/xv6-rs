@@ -6,6 +6,7 @@
 #![feature(once_cell)]
 #![feature(const_size_of_val)]
 #![feature(const_fn_fn_ptr_basics)]
+#![feature(inline_const)]
 
 use core::mem::MaybeUninit;
 
@@ -22,6 +23,7 @@ mod fs;
 mod ide;
 mod ioapic;
 mod kalloc;
+mod keyboard;
 mod lapic;
 mod log;
 mod memlayout;
@@ -35,6 +37,7 @@ mod sleeplock;
 mod spinlock;
 mod switch;
 mod sync_hack;
+mod syscall;
 mod trap;
 mod trapasm;
 mod trapvec;
@@ -134,7 +137,6 @@ unsafe extern "C" fn main() {
 
         fn consoleinit();
         fn pinit();
-        fn ticksinit();
         fn fileinit();
         fn startothers();
         fn kinit2(vstart: *const u8, vend: *const u8);
@@ -151,7 +153,6 @@ unsafe extern "C" fn main() {
     consoleinit(); // console hardware
     uartinit(); // serial port
     pinit(); // process table
-    ticksinit(); // ticks
     fileinit(); // file table
     init_ide(NCPU); // disk
     startothers(); // start other processors

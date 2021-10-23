@@ -115,7 +115,7 @@ void            sleep(void*, struct spinlock*);
 void            userinit(void);
 int             wait(void);
 void            wakeup(void*);
-void            yield(void);
+void            yield_proc(void);
 
 // swtch.S
 void            swtch(struct context**, struct context*);
@@ -154,11 +154,6 @@ void            syscall(void);
 
 // timer.c
 void            timerinit(void);
-
-// trap.c
-void            ticksinit(void);
-extern uint     ticks;
-extern struct spinlock tickslock;
 
 // uart.rs
 void            uartintr(void);

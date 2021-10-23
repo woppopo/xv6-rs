@@ -15,8 +15,7 @@ pub struct SpinLock {
     // For debugging:
     name: *const i8, // Name of lock.
     cpu: *const Cpu, // The cpu holding the lock.
-    pcs: [u32; 10],  // The call stack (an array of program counters)
-                     // that locked the lock.
+    pcs: [u32; 10],  // The call stack (an array of program counters) that locked the lock.
 }
 
 impl SpinLock {

@@ -116,7 +116,7 @@ extern "C" fn lapicid() -> u32 {
 }
 
 #[no_mangle]
-extern "C" fn lapiceoi() {
+pub extern "C" fn lapiceoi() {
     unsafe {
         LAPIC
             .as_ref()
