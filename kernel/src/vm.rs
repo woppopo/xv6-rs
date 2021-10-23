@@ -129,10 +129,10 @@ pub fn seginit() {
     // an interrupt from CPL=0 to DPL=3.
     unsafe {
         let cpu = mycpu();
-        (*cpu).gdt.kernel_code = SegmentDescriptor::new(STA_X | STA_R, 0, 0xffffffff, 0);
-        (*cpu).gdt.kernel_data = SegmentDescriptor::new(STA_W, 0, 0xffffffff, 0);
-        (*cpu).gdt.user_code = SegmentDescriptor::new(STA_X | STA_R, 0, 0xffffffff, DPL_USER);
-        (*cpu).gdt.user_data = SegmentDescriptor::new(STA_W, 0, 0xffffffff, DPL_USER);
+        (*cpu).gdt.kernel_code = SegmentDescriptor::new32(STA_X | STA_R, 0, 0xffffffff, 0);
+        (*cpu).gdt.kernel_data = SegmentDescriptor::new32(STA_W, 0, 0xffffffff, 0);
+        (*cpu).gdt.user_code = SegmentDescriptor::new32(STA_X | STA_R, 0, 0xffffffff, DPL_USER);
+        (*cpu).gdt.user_data = SegmentDescriptor::new32(STA_W, 0, 0xffffffff, DPL_USER);
         (*cpu).gdt.load();
     }
 }

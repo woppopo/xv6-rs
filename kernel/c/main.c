@@ -6,14 +6,7 @@
 #include "proc.h"
 #include "x86.h"
 
-// Common CPU setup code.
-void mpmain(void)
-{
-  cprintf("cpu%d: starting %d\n", cpuid(), cpuid());
-  idtinit();                    // load idt register
-  xchg(&(mycpu()->started), 1); // tell startothers() we're up
-  scheduler();                  // start running processes
-}
+extern void mpmain(void);
 
 // Other CPUs jump here from entryother.S.
 void mpenter(void)

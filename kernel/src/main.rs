@@ -3,13 +3,16 @@
 #![feature(asm)]
 #![feature(global_asm)]
 #![feature(naked_functions)]
+#![feature(once_cell)]
 #![feature(const_size_of_val)]
+#![feature(const_fn_fn_ptr_basics)]
 
 use core::mem::MaybeUninit;
 
 use mmu::NPDENTRIES;
 use param::MAXCPU;
 use proc::Cpu;
+use sync_hack::SyncHack;
 use vm::PDE;
 
 mod buf;
@@ -31,6 +34,7 @@ mod proc;
 mod sleeplock;
 mod spinlock;
 mod switch;
+mod sync_hack;
 mod trap;
 mod trapasm;
 mod trapvec;
@@ -43,11 +47,6 @@ fn panic(_info: &core::panic::PanicInfo) -> ! {
     loop {}
 }
 
-#[repr(transparent)]
-struct StaticPointer<T>(*const T);
-
-unsafe impl<T> Sync for StaticPointer<T> {}
-
 #[repr(align(4096), C)]
 struct Align4096<T>(T);
 
@@ -57,7 +56,7 @@ static INITCODE: &'static [u8] = include_bytes!(concat!(env!("OUT_DIR"), "/initc
 
 #[used]
 #[no_mangle]
-static _binary_initcode_start: StaticPointer<u8> = StaticPointer(INITCODE.as_ptr());
+static _binary_initcode_start: SyncHack<*const u8> = SyncHack(INITCODE.as_ptr());
 
 #[used]
 #[no_mangle]
@@ -69,7 +68,7 @@ static ENTRYOTHER: &'static [u8] = include_bytes!(concat!(env!("OUT_DIR"), "/ent
 
 #[used]
 #[no_mangle]
-static _binary_entryother_start: StaticPointer<u8> = StaticPointer(ENTRYOTHER.as_ptr());
+static _binary_entryother_start: SyncHack<*const u8> = SyncHack(ENTRYOTHER.as_ptr());
 
 #[used]
 #[no_mangle]
@@ -125,6 +124,7 @@ unsafe extern "C" fn main() {
     use crate::memlayout::{p2v, PHYSTOP};
     use crate::mp::mp_init;
     use crate::picirq::picinit;
+    use crate::trap::load_interrupt_descriptor_table;
     use crate::uart::uartinit;
     use crate::vm::{kvm_alloc, seginit};
 
@@ -134,12 +134,11 @@ unsafe extern "C" fn main() {
 
         fn consoleinit();
         fn pinit();
-        fn tvinit();
+        fn ticksinit();
         fn fileinit();
         fn startothers();
         fn kinit2(vstart: *const u8, vend: *const u8);
         fn userinit();
-        fn mpmain();
     }
 
     kinit1(end as _, p2v(4 * 1024 * 1024) as _); // phys page allocator
@@ -152,11 +151,44 @@ unsafe extern "C" fn main() {
     consoleinit(); // console hardware
     uartinit(); // serial port
     pinit(); // process table
-    tvinit(); // trap vectors
+    ticksinit(); // ticks
     fileinit(); // file table
     init_ide(NCPU); // disk
     startothers(); // start other processors
     kinit2(p2v(4 * 1024 * 1024) as _, p2v(PHYSTOP) as _); // must come after startothers()
     userinit(); // first user process
-    mpmain(); // finish this processor's setup
+    mp_main(); // finish this processor's setup
+}
+
+// Common CPU setup code.
+unsafe fn mp_main() {
+    use crate::proc::mycpu;
+    use crate::trap::load_interrupt_descriptor_table;
+
+    extern "C" {
+        fn scheduler();
+    }
+
+    //cprintf("cpu%d: starting %d\n", cpuid(), cpuid());
+    unsafe {
+        load_interrupt_descriptor_table(); // load idt register
+
+        // tell startothers() we're up
+        (*mycpu())
+            .started
+            .store(1, core::sync::atomic::Ordering::SeqCst);
+
+        scheduler(); // start running processes
+    }
+}
+
+mod _binding {
+    use super::*;
+
+    #[no_mangle]
+    extern "C" fn mpmain() {
+        unsafe {
+            mp_main();
+        }
+    }
 }

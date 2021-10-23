@@ -83,3 +83,14 @@ pub unsafe fn cli() {
 pub unsafe fn sti() {
     asm!("sti");
 }
+
+pub unsafe fn lidt<T, const SIZE: usize>(table: &[T; SIZE]) {
+    let size_of_bytes = core::mem::size_of::<T>() * SIZE;
+    let pd = [
+        (size_of_bytes - 1) as u16,
+        table as *const T as usize as u16,
+        (table as *const T as usize >> 16) as u16,
+    ];
+
+    asm!("lidt [{0}]", in(reg) pd.as_ptr());
+}

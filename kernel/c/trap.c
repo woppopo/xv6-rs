@@ -8,26 +8,12 @@
 #include "traps.h"
 #include "spinlock.h"
 
-// Interrupt descriptor table (shared by all CPUs).
-struct gatedesc idt[256];
-extern uint trap_vector(uint); // in vectors.S: array of 256 entry pointers
 struct spinlock tickslock;
 uint ticks;
 
-void tvinit(void)
+void ticksinit(void)
 {
-  int i;
-
-  for (i = 0; i < 256; i++)
-    SETGATE(idt[i], 0, SEG_KCODE << 3, trap_vector(i), 0);
-  SETGATE(idt[T_SYSCALL], 1, SEG_KCODE << 3, trap_vector(T_SYSCALL), DPL_USER);
-
   initlock(&tickslock, "time");
-}
-
-void idtinit(void)
-{
-  lidt(idt, sizeof(idt));
 }
 
 //PAGEBREAK: 41

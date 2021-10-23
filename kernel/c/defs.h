@@ -156,9 +156,8 @@ void            syscall(void);
 void            timerinit(void);
 
 // trap.c
-void            idtinit(void);
+void            ticksinit(void);
 extern uint     ticks;
-void            tvinit(void);
 extern struct spinlock tickslock;
 
 // uart.rs

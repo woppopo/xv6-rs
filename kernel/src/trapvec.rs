@@ -32,7 +32,7 @@ seq!(N in 0..=255 {
 });
 
 #[no_mangle]
-extern "C" fn trap_vector(index: usize) -> usize {
+pub extern "C" fn trap_vector(index: usize) -> usize {
     seq!(N in 0..=255 {
         const VECTORS: [extern "C" fn() -> !; 256] = [ #(vector#N,)* ];
         const VECTORS_WITH_ERROR: [extern "C" fn() -> !; 256] = [ #(vector_with_error#N,)* ];

@@ -57,7 +57,7 @@ impl SegmentDescriptor {
         Self(0, 0)
     }
 
-    pub const fn new(ty: u8, base: u32, limit: u32, dpl: u8) -> Self {
+    pub const fn new32(ty: u8, base: u32, limit: u32, dpl: u8) -> Self {
         let desc0 = (base & 0xffff) << 16 | ((limit >> 12) & 0xffff);
         let desc1 = (base >> 24) << 24
             | 1 << 23
