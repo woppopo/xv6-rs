@@ -10,7 +10,6 @@ use crate::{
     sync_hack::SyncHack,
     syscall::syscall,
     trapvec::trap_vector,
-    uart::uartintr,
     x86::{lidt, TrapFrame},
 };
 
@@ -137,6 +136,8 @@ pub fn load_interrupt_descriptor_table() {
 }
 
 unsafe fn trap_handler(tf: &TrapFrame) {
+    use crate::uart::uart_interrupt_handler;
+
     if tf.trapno == T_SYSCALL {
         if (*myproc()).killed != 0 {
             exit()
@@ -174,7 +175,7 @@ unsafe fn trap_handler(tf: &TrapFrame) {
             lapiceoi();
         }
         const { T_IRQ0 + IRQ_COM1 } => {
-            uartintr();
+            uart_interrupt_handler();
             lapiceoi();
         }
         const { T_IRQ0 + 7 } | const { T_IRQ0 + IRQ_SPURIOUS } => {

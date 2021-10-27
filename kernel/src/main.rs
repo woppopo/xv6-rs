@@ -89,7 +89,7 @@ static mut NCPU: usize = 0;
 #[no_mangle]
 static mut IOAPICID: u8 = 0;
 
-static mut LAPIC: *mut u32 = core::ptr::null_mut();
+static mut LAPIC_ADDRESS: *mut u32 = core::ptr::null_mut();
 
 extern "C" {
     pub fn data();
@@ -139,7 +139,7 @@ unsafe extern "C" fn main() {
     kinit1(end as _, p2v(4 * 1024 * 1024) as _); // phys page allocator
     kvm_alloc(); // kernel page table
     mp_init(); // detect other processors
-    lapicinit(LAPIC); // interrupt controller
+    lapicinit(LAPIC_ADDRESS); // interrupt controller
     seginit(); // segment descriptors
     picinit(); // disable pic
     ioapicinit(IOAPICID); // another interrupt controller
@@ -177,14 +177,13 @@ unsafe fn mp_main() {
 }
 
 // Other CPUs jump here from entryother.S.
-#[no_mangle]
 extern "C" fn mp_enter() {
     use crate::lapic::lapicinit;
     use crate::vm::{kvm_switch, seginit};
 
     kvm_switch();
     seginit();
-    lapicinit(unsafe { LAPIC });
+    lapicinit(unsafe { LAPIC_ADDRESS });
     unsafe {
         mp_main();
     }

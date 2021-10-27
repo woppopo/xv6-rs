@@ -47,8 +47,7 @@ impl LocalApic {
 
 static mut LAPIC: Option<LocalApic> = None;
 
-#[no_mangle]
-pub extern "C" fn lapicinit(addr: *mut u32) {
+pub fn lapicinit(addr: *mut u32) {
     use crate::trap::{IRQ_ERROR, IRQ_SPURIOUS, IRQ_TIMER, T_IRQ0};
 
     let lapic = unsafe {
@@ -115,8 +114,7 @@ extern "C" fn lapicid() -> u32 {
     }
 }
 
-#[no_mangle]
-pub extern "C" fn lapiceoi() {
+pub fn lapiceoi() {
     unsafe {
         LAPIC
             .as_ref()

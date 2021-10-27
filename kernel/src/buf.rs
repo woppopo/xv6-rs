@@ -167,11 +167,6 @@ mod _binding {
     static mut CACHE: BufferCache = BufferCache::new();
 
     #[no_mangle]
-    extern "C" fn bget(dev: u32, blockno: u32) -> *mut Buffer {
-        unsafe { CACHE.get(dev as usize, blockno as usize) }
-    }
-
-    #[no_mangle]
     extern "C" fn bread(dev: u32, blockno: u32) -> *mut Buffer {
         unsafe { CACHE.read(dev as usize, blockno as usize) }
     }

@@ -1,5 +1,7 @@
 use seq_macro::seq;
 
+pub type Trap = extern "C" fn() -> !;
+
 seq!(N in 0..=255 {
     #[naked]
     extern "C" fn vector#N() -> ! {
@@ -31,16 +33,15 @@ seq!(N in 0..=255 {
     }
 });
 
-#[no_mangle]
-pub extern "C" fn trap_vector(index: usize) -> usize {
+pub const fn trap_vector(index: usize) -> Trap {
     seq!(N in 0..=255 {
-        const VECTORS: [extern "C" fn() -> !; 256] = [ #(vector#N,)* ];
-        const VECTORS_WITH_ERROR: [extern "C" fn() -> !; 256] = [ #(vector_with_error#N,)* ];
+        const VECTORS: [Trap; 256] = [ #(vector#N,)* ];
+        const VECTORS_WITH_ERROR: [Trap; 256] = [ #(vector_with_error#N,)* ];
     });
 
     if index == 8 || (index >= 10 && index <= 14) || index == 17 {
-        VECTORS_WITH_ERROR[index] as usize
+        VECTORS_WITH_ERROR[index]
     } else {
-        VECTORS[index] as usize
+        VECTORS[index]
     }
 }

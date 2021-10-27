@@ -74,8 +74,7 @@ extern "C" fn uartgetc() -> u32 {
     }
 }
 
-#[no_mangle]
-pub extern "C" fn uartintr() {
+pub fn uart_interrupt_handler() {
     unsafe {
         consoleintr(uartgetc);
     }

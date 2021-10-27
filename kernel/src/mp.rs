@@ -7,7 +7,7 @@ use crate::{
     param::MAXCPU,
     proc::Cpu,
     x86::{inb, outb},
-    CPUS, IOAPICID, LAPIC, NCPU,
+    CPUS, IOAPICID, LAPIC_ADDRESS, NCPU,
 };
 
 // Table entry types
@@ -157,7 +157,7 @@ fn mp_config() -> Option<(&'static MP, &'static MPConf)> {
 
 pub unsafe fn mp_init() {
     let (mp, conf) = mp_config().expect("Expect to run on an SMP");
-    LAPIC = conf.lapicaddr;
+    LAPIC_ADDRESS = conf.lapicaddr;
 
     let mut ptr = (conf as *const MPConf).add(1) as usize;
     while ptr < (conf as *const _ as usize) + (conf.length as usize) {
