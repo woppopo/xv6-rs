@@ -1,12 +1,16 @@
 use core::{ffi::c_void, sync::atomic::AtomicU32};
 
+use arrayvec::ArrayVec;
+
 use crate::{
     file::{File, INode},
-    mmu::{SegmentDescriptorTable, TaskState},
-    param::NOFILE,
+    lapic::lapicid,
+    mmu::{SegmentDescriptorTable, TaskState, FL_IF},
+    param::{NOFILE, NPROC},
     spinlock::SpinLock,
     vm::PDE,
-    x86::TrapFrame,
+    x86::{readeflags, TrapFrame},
+    CPUS,
 };
 
 // Per-CPU state
@@ -70,12 +74,70 @@ pub struct Process {
     name: [i8; 16],           // Process name (debugging)
 }
 
+struct ProcessTable {
+    lock: SpinLock,
+    init: *mut Process,
+    procs: ArrayVec<Process, NPROC>,
+    nextpid: u32,
+}
+
+impl ProcessTable {
+    pub const fn new() -> Self {
+        Self {
+            lock: SpinLock::new(),
+            init: core::ptr::null_mut(),
+            procs: ArrayVec::new_const(),
+            nextpid: 1,
+        }
+    }
+}
+
+static mut PROCS: ProcessTable = ProcessTable::new();
+
+// Must be called with interrupts disabled
+pub fn my_cpu_id() -> usize {
+    if unsafe { readeflags() & FL_IF != 0 } {
+        panic!("cpuid called with interrupts enabled");
+    }
+
+    let apicid = lapicid() as u8;
+    unsafe {
+        CPUS.assume_init_ref()
+            .iter()
+            .position(|cpu| cpu.apicid == apicid)
+            .expect("unknown apicid")
+    }
+}
+
+// Must be called with interrupts disabled to avoid the caller being
+// rescheduled between reading lapicid and running through the loop.
+pub fn my_cpu() -> &'static Cpu {
+    let id = my_cpu_id();
+    let cpus = unsafe { CPUS.assume_init_ref() };
+    &cpus[id]
+}
+
+// Must be called with interrupts disabled to avoid the caller being
+// rescheduled between reading lapicid and running through the loop.
+pub fn my_cpu_mut() -> &'static mut Cpu {
+    let id = my_cpu_id();
+    let cpus = unsafe { CPUS.assume_init_mut() };
+    &mut cpus[id]
+}
+
 extern "C" {
-    pub fn mycpu() -> *mut Cpu;
     pub fn myproc() -> *mut Process;
     pub fn wakeup(chan: *const c_void);
     pub fn sleep(chan: *const c_void, lk: *const SpinLock);
     pub fn exit();
     pub fn yield_proc();
-    pub fn cpuid() -> i32;
+}
+
+mod _bindings {
+    use super::*;
+
+    #[no_mangle]
+    extern "C" fn mycpu() -> *mut Cpu {
+        my_cpu_mut()
+    }
 }

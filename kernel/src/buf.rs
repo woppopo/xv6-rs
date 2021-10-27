@@ -1,5 +1,3 @@
-use core::mem::MaybeUninit;
-
 use arrayvec::ArrayVec;
 
 use crate::{fs::BSIZE, ide::IDE, param::NBUF, sleeplock::SleepLock, spinlock::SpinLock};

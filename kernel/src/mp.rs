@@ -5,7 +5,6 @@ use core::ffi::c_void;
 use crate::{
     memlayout::p2v,
     param::MAXCPU,
-    proc::Cpu,
     x86::{inb, outb},
     CPUS, IOAPICID, LAPIC_ADDRESS, NCPU,
 };

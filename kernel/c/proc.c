@@ -26,32 +26,6 @@ pinit(void)
   initlock(&ptable.lock, "ptable");
 }
 
-// Must be called with interrupts disabled
-int
-cpuid() {
-  return mycpu()-CPUS;
-}
-
-// Must be called with interrupts disabled to avoid the caller being
-// rescheduled between reading lapicid and running through the loop.
-struct cpu*
-mycpu(void)
-{
-  int apicid, i;
-  
-  if(readeflags()&FL_IF)
-    panic("mycpu called with interrupts enabled\n");
-  
-  apicid = lapicid();
-  // APIC IDs are not guaranteed to be contiguous. Maybe we should have
-  // a reverse map, or reserve a register to store &CPUS[i].
-  for (i = 0; i < NCPU; ++i) {
-    if (CPUS[i].apicid == apicid)
-      return &CPUS[i];
-  }
-  panic("unknown apicid\n");
-}
-
 // Disable interrupts so that we are not rescheduled
 // while reading proc from the cpu structure
 struct proc*

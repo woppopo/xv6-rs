@@ -105,7 +105,7 @@ pub fn lapicinit(addr: *mut u32) {
 }
 
 #[no_mangle]
-extern "C" fn lapicid() -> u32 {
+pub extern "C" fn lapicid() -> u32 {
     unsafe {
         LAPIC
             .as_ref()

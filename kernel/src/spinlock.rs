@@ -3,7 +3,7 @@ use core::{ffi::c_void, sync::atomic::AtomicU32};
 use crate::{
     memlayout::KERNBASE,
     mmu::FL_IF,
-    proc::{mycpu, Cpu},
+    proc::{my_cpu, my_cpu_mut, Cpu},
     x86::{cli, readeflags, sti},
 };
 
@@ -49,7 +49,7 @@ impl SpinLock {
         {}
 
         // Record info about lock acquisition for debugging.
-        self.cpu = unsafe { mycpu() };
+        self.cpu = my_cpu();
         //get_call_stack(&self as *const _ as *const u32, &mut self.pcs);
     }
 
@@ -68,8 +68,7 @@ impl SpinLock {
     // Check whether this cpu is holding the lock.
     pub fn is_locked(&self) -> bool {
         free_from_interrupt(|| {
-            self.locked.load(core::sync::atomic::Ordering::Relaxed) != 0
-                && self.cpu == unsafe { mycpu() }
+            self.locked.load(core::sync::atomic::Ordering::Relaxed) != 0 && self.cpu == my_cpu()
         })
     }
 }
@@ -106,7 +105,7 @@ fn push_cli() {
         cli();
     }
 
-    let cpu = unsafe { &mut *mycpu() };
+    let cpu = my_cpu_mut();
     if cpu.ncli == 0 {
         cpu.intena = eflags & FL_IF;
     }
@@ -118,7 +117,7 @@ fn pop_cli() {
         panic!("pop_cli - interruptible");
     }
 
-    let cpu = unsafe { &mut *mycpu() };
+    let cpu = my_cpu_mut();
     if cpu.ncli == 0 {
         panic!("pop_cli");
     }

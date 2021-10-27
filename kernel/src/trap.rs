@@ -1,13 +1,10 @@
-use core::{lazy::OnceCell, sync::atomic::AtomicU32};
-
 use crate::{
     ide::ide_interrupt,
     keyboard::kbdintr,
     lapic::lapiceoi,
     mmu::SegmentDescriptorTable,
-    proc::{cpuid, exit, myproc, wakeup, yield_proc, ProcessState},
+    proc::{exit, my_cpu_id, myproc, wakeup, yield_proc, ProcessState},
     spinlock::SpinLock,
-    sync_hack::SyncHack,
     syscall::syscall,
     trapvec::trap_vector,
     x86::{lidt, TrapFrame},
@@ -155,7 +152,7 @@ unsafe fn trap_handler(tf: &TrapFrame) {
 
     match tf.trapno {
         const { T_IRQ0 + IRQ_TIMER } => {
-            if cpuid() == 0 {
+            if my_cpu_id() == 0 {
                 TICKSLOCK.acquire();
                 TICKS += 1;
                 wakeup(&TICKS as *const _ as *const _);

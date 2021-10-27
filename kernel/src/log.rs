@@ -1,4 +1,4 @@
-use crate::{fs::BSIZE, param::LOGSIZE, spinlock::SpinLock};
+use crate::{param::LOGSIZE, spinlock::SpinLock};
 
 // Simple logging that allows concurrent FS system calls.
 //

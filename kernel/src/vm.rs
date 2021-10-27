@@ -11,7 +11,7 @@ use crate::{
         NPDENTRIES, PGSIZE,
     },
     param::KSTACKSIZE,
-    proc::{mycpu, Process},
+    proc::{my_cpu_mut, Process},
     spinlock::free_from_interrupt,
     x86::{lcr3, ltr},
 };
@@ -128,12 +128,12 @@ pub fn seginit() {
     // because it would have to have DPL_USR, but the CPU forbids
     // an interrupt from CPL=0 to DPL=3.
     unsafe {
-        let cpu = mycpu();
-        (*cpu).gdt.kernel_code = SegmentDescriptor::new32(STA_X | STA_R, 0, 0xffffffff, 0);
-        (*cpu).gdt.kernel_data = SegmentDescriptor::new32(STA_W, 0, 0xffffffff, 0);
-        (*cpu).gdt.user_code = SegmentDescriptor::new32(STA_X | STA_R, 0, 0xffffffff, DPL_USER);
-        (*cpu).gdt.user_data = SegmentDescriptor::new32(STA_W, 0, 0xffffffff, DPL_USER);
-        (*cpu).gdt.load();
+        let cpu = my_cpu_mut();
+        cpu.gdt.kernel_code = SegmentDescriptor::new32(STA_X | STA_R, 0, 0xffffffff, 0);
+        cpu.gdt.kernel_data = SegmentDescriptor::new32(STA_W, 0, 0xffffffff, 0);
+        cpu.gdt.user_code = SegmentDescriptor::new32(STA_X | STA_R, 0, 0xffffffff, DPL_USER);
+        cpu.gdt.user_data = SegmentDescriptor::new32(STA_W, 0, 0xffffffff, DPL_USER);
+        cpu.gdt.load();
     }
 }
 
@@ -424,19 +424,19 @@ fn uvm_switch(proc: *mut Process) {
         const STS_T32A: u8 = 0x9; // Available 32-bit TSS
 
         free_from_interrupt(|| {
-            let cpu = mycpu();
-            (*cpu).gdt.task_state = SegmentDescriptor::new16(
+            let cpu = my_cpu_mut();
+            cpu.gdt.task_state = SegmentDescriptor::new16(
                 STS_T32A,
                 &(*cpu).ts as *const _ as _,
                 (core::mem::size_of::<TaskState>() - 1) as u32,
                 0,
                 false,
             );
-            (*cpu).ts.ss0 = SegmentDescriptorTable::KERNEL_DATA_SELECTOR;
-            (*cpu).ts.esp0 = (*proc).kstack as u32 + KSTACKSIZE as u32;
+            cpu.ts.ss0 = SegmentDescriptorTable::KERNEL_DATA_SELECTOR;
+            cpu.ts.esp0 = (*proc).kstack as u32 + KSTACKSIZE as u32;
             // setting IOPL=0 in eflags *and* iomb beyond the tss segment limit
             // forbids I/O instructions (e.g., inb and outb) from user space
-            (*cpu).ts.iomb = 0xffff;
+            cpu.ts.iomb = 0xffff;
             ltr(SegmentDescriptorTable::TASK_STATE_SELECTOR);
             lcr3(v2p((*proc).pgdir as usize)); // switch to process's address space
         });

@@ -1,3 +1,4 @@
+#![allow(incomplete_features)]
 #![no_std]
 #![no_main]
 #![feature(asm)]
@@ -156,7 +157,7 @@ unsafe extern "C" fn main() {
 
 // Common CPU setup code.
 unsafe fn mp_main() {
-    use crate::proc::mycpu;
+    use crate::proc::my_cpu;
     use crate::trap::load_interrupt_descriptor_table;
 
     extern "C" {
@@ -168,7 +169,7 @@ unsafe fn mp_main() {
         load_interrupt_descriptor_table(); // load idt register
 
         // tell startothers() we're up
-        (*mycpu())
+        my_cpu()
             .started
             .store(1, core::sync::atomic::Ordering::SeqCst);
 
@@ -194,7 +195,7 @@ fn startothers() {
     use crate::kalloc::kalloc;
     use crate::memlayout::{p2v, v2p};
     use crate::param::KSTACKSIZE;
-    use crate::proc::mycpu;
+    use crate::proc::my_cpu;
 
     // Write entry code to unused memory at 0x7000.
     // The linker has placed the image of entryother.S in
@@ -210,7 +211,7 @@ fn startothers() {
     let ncpu = unsafe { NCPU };
     for c in cpus.iter().take(ncpu) {
         // We've started already.
-        if (c as *const _) == unsafe { mycpu() } {
+        if (c as *const _) == my_cpu() {
             continue;
         }
 
