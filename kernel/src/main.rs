@@ -53,8 +53,14 @@ fn panic(_info: &core::panic::PanicInfo) -> ! {
 #[repr(align(4096), C)]
 struct Align4096<T>(T);
 
-#[used]
-#[no_mangle]
+impl<T> core::ops::Deref for Align4096<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 static INITCODE: &'static [u8] = include_bytes!(concat!(env!("OUT_DIR"), "/initcode"));
 
 #[used]
@@ -63,19 +69,9 @@ static _binary_initcode_start: SyncHack<*const u8> = SyncHack(INITCODE.as_ptr())
 
 #[used]
 #[no_mangle]
-static _binary_initcode_size: usize = INITCODE.len();
+static _binary_initcode_size: usize = ENTRYOTHER.len();
 
-#[used]
-#[no_mangle]
 static ENTRYOTHER: &'static [u8] = include_bytes!(concat!(env!("OUT_DIR"), "/entryother"));
-
-#[used]
-#[no_mangle]
-static _binary_entryother_start: SyncHack<*const u8> = SyncHack(ENTRYOTHER.as_ptr());
-
-#[used]
-#[no_mangle]
-static _binary_entryother_size: usize = ENTRYOTHER.len();
 
 #[used]
 #[no_mangle]
@@ -93,8 +89,6 @@ static mut NCPU: usize = 0;
 #[no_mangle]
 static mut IOAPICID: u8 = 0;
 
-#[used]
-#[no_mangle]
 static mut LAPIC: *mut u32 = core::ptr::null_mut();
 
 extern "C" {
@@ -138,7 +132,6 @@ unsafe extern "C" fn main() {
         fn consoleinit();
         fn pinit();
         fn fileinit();
-        fn startothers();
         fn kinit2(vstart: *const u8, vend: *const u8);
         fn userinit();
     }
@@ -183,13 +176,56 @@ unsafe fn mp_main() {
     }
 }
 
-mod _binding {
-    use super::*;
+// Other CPUs jump here from entryother.S.
+#[no_mangle]
+extern "C" fn mp_enter() {
+    use crate::lapic::lapicinit;
+    use crate::vm::{kvm_switch, seginit};
 
-    #[no_mangle]
-    extern "C" fn mpmain() {
-        unsafe {
-            mp_main();
+    kvm_switch();
+    seginit();
+    lapicinit(unsafe { LAPIC });
+    unsafe {
+        mp_main();
+    }
+}
+
+// Start the non-boot (AP) processors.
+fn startothers() {
+    use crate::kalloc::kalloc;
+    use crate::memlayout::{p2v, v2p};
+    use crate::param::KSTACKSIZE;
+    use crate::proc::mycpu;
+
+    // Write entry code to unused memory at 0x7000.
+    // The linker has placed the image of entryother.S in
+    // _binary_entryother_start.
+    let code = p2v(0x7000) as *mut u8;
+    unsafe {
+        ENTRYOTHER
+            .as_ptr()
+            .copy_to_nonoverlapping(code, ENTRYOTHER.len());
+    }
+
+    let cpus = unsafe { CPUS.assume_init_ref() };
+    let ncpu = unsafe { NCPU };
+    for c in cpus.iter().take(ncpu) {
+        // We've started already.
+        if (c as *const _) == unsafe { mycpu() } {
+            continue;
         }
+
+        // Tell entryother.S what stack to use, where to enter, and what
+        // pgdir to use. We cannot use kpgdir yet, because the AP processor
+        // is running in low  memory, so we use ENTRYPGDIR for the APs too.
+        let stack = kalloc().unwrap();
+        unsafe {
+            *code.sub(4).cast::<usize>() = stack + KSTACKSIZE;
+            *code.sub(8).cast::<extern "C" fn()>() = mp_enter;
+            *code.sub(12).cast::<usize>() = v2p(ENTRYPGDIR.as_ptr() as usize);
+        }
+        crate::lapic::lapicstartap(c.apicid, v2p(code as usize) as u32);
+
+        while c.started.load(core::sync::atomic::Ordering::SeqCst) == 0 {}
     }
 }

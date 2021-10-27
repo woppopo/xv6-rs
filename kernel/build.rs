@@ -32,7 +32,7 @@ fn main() {
     }
 
     let c_files = [
-        "console", "exec", "file", "fs", "kalloc", "kbd", "log", "main", "pipe", "proc", "string",
+        "console", "exec", "file", "fs", "kalloc", "kbd", "log", "pipe", "proc", "string",
         "syscall", "sysfile", "sysproc",
     ];
     for file in c_files {

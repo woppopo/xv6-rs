@@ -287,7 +287,7 @@ pub fn kvm_alloc() {
 
 // Switch h/w page table register to the kernel-only page table,
 // for when no process is running.
-fn kvm_switch() {
+pub fn kvm_switch() {
     unsafe {
         lcr3(v2p(KPGDIR)); // switch to the kernel page table
     }

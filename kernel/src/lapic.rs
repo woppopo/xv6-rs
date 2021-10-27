@@ -128,8 +128,7 @@ pub fn microdelay(_ms: u32) {}
 
 // Start additional processor running entry code at addr.
 // See Appendix B of MultiProcessor Specification.
-#[no_mangle]
-extern "C" fn lapicstartap(apicid: u8, addr: u32) {
+pub fn lapicstartap(apicid: u8, addr: u32) {
     use crate::memlayout::p2v;
     use crate::x86::outb;
 
