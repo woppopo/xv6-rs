@@ -132,7 +132,7 @@ pub fn load_interrupt_descriptor_table() {
     }
 }
 
-unsafe fn trap_handler(tf: &TrapFrame) {
+unsafe fn trap_handler(tf: &mut TrapFrame) {
     use crate::uart::uart_interrupt_handler;
 
     if tf.trapno == T_SYSCALL {
@@ -217,9 +217,9 @@ mod _bindings {
     use super::*;
 
     #[no_mangle]
-    extern "C" fn trap(tf: *const TrapFrame) {
+    extern "C" fn trap(tf: *mut TrapFrame) {
         unsafe {
-            trap_handler(&*tf);
+            trap_handler(&mut *tf);
         }
     }
 }

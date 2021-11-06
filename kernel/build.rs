@@ -33,7 +33,7 @@ fn main() {
 
     let c_files = [
         "console", "exec", "file", "fs", "kalloc", "kbd", "log", "pipe", "proc", "string",
-        "syscall", "sysfile", "sysproc",
+        "sysfile", "sysproc",
     ];
     for file in c_files {
         build
