@@ -1,6 +1,6 @@
 use crate::{
     ide::ide_interrupt,
-    keyboard::kbdintr,
+    keyboard::keyboard_interrupt,
     lapic::lapiceoi,
     mmu::SegmentDescriptorTable,
     proc::{exit, my_cpu_id, myproc, wakeup, yield_proc, ProcessState},
@@ -168,7 +168,7 @@ unsafe fn trap_handler(tf: &mut TrapFrame) {
             // Bochs generates spurious IDE1 interrupts.
         }
         const { T_IRQ0 + IRQ_KBD } => {
-            kbdintr();
+            keyboard_interrupt();
             lapiceoi();
         }
         const { T_IRQ0 + IRQ_COM1 } => {

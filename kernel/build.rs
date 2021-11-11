@@ -32,8 +32,8 @@ fn main() {
     }
 
     let c_files = [
-        "console", "exec", "file", "fs", "kalloc", "kbd", "log", "pipe", "proc", "string",
-        "sysfile", "sysproc",
+        "console", "exec", "file", "fs", "kalloc", "log", "pipe", "proc", "string", "sysfile",
+        "sysproc",
     ];
     for file in c_files {
         build
