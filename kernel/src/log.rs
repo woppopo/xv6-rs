@@ -1,4 +1,4 @@
-use crate::{param::LOGSIZE, spinlock::SpinLock};
+use crate::{param::LOGSIZE, spinlock::SpinLockC};
 
 // Simple logging that allows concurrent FS system calls.
 //
@@ -33,7 +33,7 @@ pub struct LogHeader {
 
 #[repr(C)]
 pub struct Log {
-    lock: SpinLock,
+    lock: SpinLockC,
     start: i32,
     size: i32,
     outstanding: i32, // how many FS sys calls are executing.

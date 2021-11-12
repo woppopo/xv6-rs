@@ -1,6 +1,6 @@
 use arrayvec::ArrayVec;
 
-use crate::{fs::BSIZE, ide::IDE, param::NBUF, sleeplock::SleepLock, spinlock::SpinLock};
+use crate::{fs::BSIZE, ide::IDE, param::NBUF, sleeplock::SleepLock, spinlock::SpinLockC};
 
 #[repr(C)]
 pub struct Buffer {
@@ -78,14 +78,14 @@ impl Buffer {
 //     and needs to be written to disk.
 
 pub struct BufferCache {
-    lock: SpinLock,
+    lock: SpinLockC,
     buffers: ArrayVec<Buffer, NBUF>,
 }
 
 impl BufferCache {
     pub const fn new() -> Self {
         Self {
-            lock: SpinLock::new(),
+            lock: SpinLockC::new(),
             buffers: ArrayVec::new_const(),
         }
     }

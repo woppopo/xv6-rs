@@ -4,7 +4,7 @@ use crate::{
     ioapic::ioapicenable,
     param::FSSIZE,
     proc::{sleep, wakeup},
-    spinlock::SpinLock,
+    spinlock::SpinLockC,
     trap::IRQ_IDE,
     x86::{inb, insl, outb, outsl},
 };
@@ -26,7 +26,7 @@ const IDE_CMD_WRMUL: u8 = 0xc5;
 pub static mut IDE: Option<IDE> = None;
 
 pub struct IDE {
-    lock: SpinLock,
+    lock: SpinLockC,
     queue: *mut Buffer,
     havedisk1: bool,
 }
@@ -54,7 +54,7 @@ impl IDE {
         }
 
         Self {
-            lock: SpinLock::new(),
+            lock: SpinLockC::new(),
             queue: core::ptr::null_mut(),
             havedisk1,
         }

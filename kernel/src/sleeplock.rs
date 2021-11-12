@@ -1,21 +1,21 @@
 use crate::{
     proc::{myproc, sleep, wakeup},
-    spinlock::SpinLock,
+    spinlock::SpinLockC,
 };
 
 // Long-term locks for processes
 #[repr(C)]
 pub struct SleepLock {
-    locked: u32,    // Is the lock held?
-    lock: SpinLock, // spinlock protecting this sleep lock
-    pid: i32,       // Process holding lock
+    locked: u32,     // Is the lock held?
+    lock: SpinLockC, // spinlock protecting this sleep lock
+    pid: i32,        // Process holding lock
 }
 
 impl SleepLock {
     pub const fn new() -> Self {
         Self {
             locked: 0,
-            lock: SpinLock::new(),
+            lock: SpinLockC::new(),
             pid: 0,
         }
     }

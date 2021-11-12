@@ -7,7 +7,7 @@ use crate::{
     lapic::lapicid,
     mmu::{SegmentDescriptorTable, TaskState, FL_IF},
     param::{NOFILE, NPROC},
-    spinlock::SpinLock,
+    spinlock::SpinLockC,
     vm::PDE,
     x86::{readeflags, TrapFrame},
     CPUS,
@@ -75,7 +75,7 @@ pub struct Process {
 }
 
 struct ProcessTable {
-    lock: SpinLock,
+    lock: SpinLockC,
     init: *mut Process,
     procs: ArrayVec<Process, NPROC>,
     nextpid: u32,
@@ -84,7 +84,7 @@ struct ProcessTable {
 impl ProcessTable {
     pub const fn new() -> Self {
         Self {
-            lock: SpinLock::new(),
+            lock: SpinLockC::new(),
             init: core::ptr::null_mut(),
             procs: ArrayVec::new_const(),
             nextpid: 1,
@@ -128,7 +128,7 @@ pub fn my_cpu_mut() -> &'static mut Cpu {
 extern "C" {
     pub fn myproc() -> *mut Process;
     pub fn wakeup(chan: *const c_void);
-    pub fn sleep(chan: *const c_void, lk: *const SpinLock);
+    pub fn sleep(chan: *const c_void, lk: *const SpinLockC);
     pub fn exit();
     pub fn yield_proc();
 }

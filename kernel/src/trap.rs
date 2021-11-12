@@ -4,7 +4,7 @@ use crate::{
     lapic::lapiceoi,
     mmu::SegmentDescriptorTable,
     proc::{exit, my_cpu_id, myproc, wakeup, yield_proc, ProcessState},
-    spinlock::SpinLock,
+    spinlock::SpinLockC,
     syscall::syscall,
     trapvec::trap_vector,
     x86::{lidt, TrapFrame},
@@ -123,7 +123,7 @@ static mut IDT: [GateDescriptor; 256] = [GateDescriptor::null(); 256];
 static mut TICKS: u32 = 0;
 
 #[no_mangle]
-static mut TICKSLOCK: SpinLock = SpinLock::new();
+static mut TICKSLOCK: SpinLockC = SpinLockC::new();
 
 pub fn load_interrupt_descriptor_table() {
     unsafe {

@@ -1,4 +1,9 @@
-use core::{ffi::c_void, sync::atomic::AtomicU32};
+use core::{
+    cell::{Cell, RefCell, UnsafeCell},
+    ffi::c_void,
+    ops::{Deref, DerefMut},
+    sync::atomic::{AtomicBool, AtomicU32, Ordering},
+};
 
 use crate::{
     memlayout::KERNBASE,
@@ -7,9 +12,72 @@ use crate::{
     x86::{cli, readeflags, sti},
 };
 
+pub struct SpinLock<T> {
+    locked: AtomicBool,
+    value: UnsafeCell<T>,
+}
+
+impl<T> SpinLock<T> {
+    pub const fn new(value: T) -> Self {
+        Self {
+            locked: AtomicBool::new(false),
+            value: UnsafeCell::new(value),
+        }
+    }
+}
+
+impl<T> SpinLock<T> {
+    pub fn lock(&self) -> SpinLockGuard<T> {
+        push_cli();
+
+        while self
+            .locked
+            .compare_exchange_weak(true, false, Ordering::SeqCst, Ordering::Relaxed)
+            .is_err()
+        {}
+
+        SpinLockGuard::new(self)
+    }
+
+    fn release(&self) {
+        self.locked.store(false, Ordering::SeqCst);
+        pop_cli();
+    }
+}
+
+pub struct SpinLockGuard<'l, T> {
+    lock: &'l SpinLock<T>,
+}
+
+impl<'l, T> SpinLockGuard<'l, T> {
+    pub fn new(lock: &'l SpinLock<T>) -> Self {
+        Self { lock }
+    }
+}
+
+impl<T> Deref for SpinLockGuard<'_, T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        unsafe { &*self.lock.value.get() }
+    }
+}
+
+impl<T> DerefMut for SpinLockGuard<'_, T> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        unsafe { &mut *self.lock.value.get() }
+    }
+}
+
+impl<T> Drop for SpinLockGuard<'_, T> {
+    fn drop(&mut self) {
+        self.lock.release();
+    }
+}
+
 // Mutual exclusion lock.
 #[repr(C)]
-pub struct SpinLock {
+pub struct SpinLockC {
     locked: AtomicU32, // Is the lock held?
 
     // For debugging:
@@ -18,7 +86,7 @@ pub struct SpinLock {
     pcs: [u32; 10],  // The call stack (an array of program counters) that locked the lock.
 }
 
-impl SpinLock {
+impl SpinLockC {
     pub const fn new() -> Self {
         Self {
             locked: AtomicU32::new(0),
@@ -135,28 +203,28 @@ mod _binding {
     use super::*;
 
     #[no_mangle]
-    extern "C" fn initlock(lk: *mut SpinLock, _name: *const i8) {
+    extern "C" fn initlock(lk: *mut SpinLockC, _name: *const i8) {
         unsafe {
-            *lk = SpinLock::new();
+            *lk = SpinLockC::new();
         }
     }
 
     #[no_mangle]
-    extern "C" fn acquire(lock: *mut SpinLock) {
+    extern "C" fn acquire(lock: *mut SpinLockC) {
         unsafe {
             (*lock).acquire();
         }
     }
 
     #[no_mangle]
-    extern "C" fn release(lock: *mut SpinLock) {
+    extern "C" fn release(lock: *mut SpinLockC) {
         unsafe {
             (*lock).release();
         }
     }
 
     #[no_mangle]
-    extern "C" fn holding(lock: *const SpinLock) -> i32 {
+    extern "C" fn holding(lock: *const SpinLockC) -> i32 {
         unsafe {
             match (*lock).is_locked() {
                 true => 1,
