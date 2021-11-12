@@ -24,15 +24,13 @@ impl<T> SpinLock<T> {
             value: UnsafeCell::new(value),
         }
     }
-}
 
-impl<T> SpinLock<T> {
     pub fn lock(&self) -> SpinLockGuard<T> {
         push_cli();
 
         while self
             .locked
-            .compare_exchange_weak(true, false, Ordering::SeqCst, Ordering::Relaxed)
+            .compare_exchange_weak(false, true, Ordering::SeqCst, Ordering::Relaxed)
             .is_err()
         {}
 
