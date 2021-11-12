@@ -1,6 +1,6 @@
 use arrayvec::ArrayVec;
 
-use crate::{fs::NDIRECT, param::NFILE, pipe::Pipe, sleeplock::SleepLock, spinlock::SpinLockC};
+use crate::{fs::NDIRECT, param::NFILE, pipe::Pipe, sleeplock::SleepLockC, spinlock::SpinLockC};
 
 #[repr(C)]
 pub enum FileKind {
@@ -37,11 +37,11 @@ impl File {
 // in-memory copy of an inode
 #[repr(C)]
 pub struct INode {
-    dev: u32,        // Device number
-    inum: u32,       // Inode number
-    ref_count: u32,  //   Reference count
-    lock: SleepLock, // protects everything below here
-    valid: i32,      // inode has been read from disk?
+    dev: u32,         // Device number
+    inum: u32,        // Inode number
+    ref_count: u32,   //   Reference count
+    lock: SleepLockC, // protects everything below here
+    valid: i32,       // inode has been read from disk?
 
     ty: u16, // copy of disk inode
     major: u16,

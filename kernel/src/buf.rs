@@ -1,13 +1,13 @@
 use arrayvec::ArrayVec;
 
-use crate::{fs::BSIZE, ide::IDE, param::NBUF, sleeplock::SleepLock, spinlock::SpinLockC};
+use crate::{fs::BSIZE, ide::IDE, param::NBUF, sleeplock::SleepLockC, spinlock::SpinLockC};
 
 #[repr(C)]
 pub struct Buffer {
     pub flags: i32,
     pub dev: usize,
     pub blockno: usize,
-    pub lock: SleepLock,
+    pub lock: SleepLockC,
     refcnt: u32,
     prev: *mut Self,
     next: *mut Self,
@@ -24,7 +24,7 @@ impl Buffer {
             flags: 0,
             dev,
             blockno,
-            lock: SleepLock::new(),
+            lock: SleepLockC::new(),
             refcnt: 1,
             prev: core::ptr::null_mut(),
             next: core::ptr::null_mut(),
