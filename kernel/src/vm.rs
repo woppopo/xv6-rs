@@ -4,6 +4,7 @@ use crate::{
     data,
     file::INode,
     fs::read_inode,
+    interrupt::free_from_interrupt,
     kalloc::{kalloc, kalloc_zeroed, kfree},
     memlayout::{p2v, v2p, DEVSPACE, EXTMEM, KERNBASE, KERNLINK, PHYSTOP},
     mmu::{
@@ -12,7 +13,6 @@ use crate::{
     },
     param::KSTACKSIZE,
     proc::{my_cpu_mut, Process},
-    spinlock::free_from_interrupt,
     x86::{lcr3, ltr},
 };
 
@@ -127,14 +127,12 @@ pub fn seginit() {
     // Cannot share a CODE descriptor for both kernel and user
     // because it would have to have DPL_USR, but the CPU forbids
     // an interrupt from CPL=0 to DPL=3.
-    unsafe {
-        let cpu = my_cpu_mut();
-        cpu.gdt.kernel_code = SegmentDescriptor::new32(STA_X | STA_R, 0, 0xffffffff, 0);
-        cpu.gdt.kernel_data = SegmentDescriptor::new32(STA_W, 0, 0xffffffff, 0);
-        cpu.gdt.user_code = SegmentDescriptor::new32(STA_X | STA_R, 0, 0xffffffff, DPL_USER);
-        cpu.gdt.user_data = SegmentDescriptor::new32(STA_W, 0, 0xffffffff, DPL_USER);
-        cpu.gdt.load();
-    }
+    let cpu = my_cpu_mut();
+    cpu.gdt.kernel_code = SegmentDescriptor::new32(STA_X | STA_R, 0, 0xffffffff, 0);
+    cpu.gdt.kernel_data = SegmentDescriptor::new32(STA_W, 0, 0xffffffff, 0);
+    cpu.gdt.user_code = SegmentDescriptor::new32(STA_X | STA_R, 0, 0xffffffff, DPL_USER);
+    cpu.gdt.user_data = SegmentDescriptor::new32(STA_W, 0, 0xffffffff, DPL_USER);
+    cpu.gdt.load();
 }
 
 // Return the address of the PTE in page table pgdir

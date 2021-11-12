@@ -1,5 +1,3 @@
-use core::sync::atomic::AtomicBool;
-
 use crate::{
     proc::{myproc, sleep, wakeup},
     spinlock::SpinLockC,

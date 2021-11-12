@@ -9,15 +9,13 @@ const KBDATAP: u16 = 0x60; // kbd data port(I)
 const NO: u8 = 0;
 const BS: u8 = 0x08;
 
-const SHIFT: u8 = (1 << 0);
-const CTL: u8 = (1 << 1);
-const ALT: u8 = (1 << 2);
-
-const CAPSLOCK: u8 = (1 << 3);
-const NUMLOCK: u8 = (1 << 4);
-const SCROLLLOCK: u8 = (1 << 5);
-
-const E0ESC: u8 = (1 << 6);
+const SHIFT: u8 = 1 << 0;
+const CTL: u8 = 1 << 1;
+const ALT: u8 = 1 << 2;
+const CAPSLOCK: u8 = 1 << 3;
+const NUMLOCK: u8 = 1 << 4;
+const SCROLLLOCK: u8 = 1 << 5;
+const E0ESC: u8 = 1 << 6;
 
 // Special keycodes
 const KEY_HOME: u8 = 0xE0;

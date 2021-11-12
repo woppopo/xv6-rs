@@ -22,6 +22,7 @@ mod console;
 mod file;
 mod fs;
 mod ide;
+mod interrupt;
 mod ioapic;
 mod kalloc;
 mod keyboard;
@@ -165,16 +166,14 @@ unsafe fn mp_main() {
     }
 
     //cprintf("cpu%d: starting %d\n", cpuid(), cpuid());
-    unsafe {
-        load_interrupt_descriptor_table(); // load idt register
+    load_interrupt_descriptor_table(); // load idt register
 
-        // tell startothers() we're up
-        my_cpu()
-            .started
-            .store(1, core::sync::atomic::Ordering::SeqCst);
+    // tell startothers() we're up
+    my_cpu()
+        .started
+        .store(1, core::sync::atomic::Ordering::SeqCst);
 
-        scheduler(); // start running processes
-    }
+    scheduler(); // start running processes
 }
 
 // Other CPUs jump here from entryother.S.

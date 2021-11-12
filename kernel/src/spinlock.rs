@@ -1,15 +1,14 @@
 use core::{
-    cell::{Cell, RefCell, UnsafeCell},
+    cell::UnsafeCell,
     ffi::c_void,
     ops::{Deref, DerefMut},
     sync::atomic::{AtomicBool, AtomicU32, Ordering},
 };
 
 use crate::{
+    interrupt::{free_from_interrupt, pop_cli, push_cli},
     memlayout::KERNBASE,
-    mmu::FL_IF,
-    proc::{my_cpu, my_cpu_mut, Cpu},
-    x86::{cli, readeflags, sti},
+    proc::{my_cpu, Cpu},
 };
 
 pub struct SpinLock<T> {
@@ -139,13 +138,6 @@ impl SpinLockC {
     }
 }
 
-pub fn free_from_interrupt<R>(f: impl FnOnce() -> R) -> R {
-    push_cli();
-    let ret = f();
-    pop_cli();
-    ret
-}
-
 // Record the current call stack in pcs[] by following the %ebp chain.
 fn get_call_stack(v: *const u32, pcs: &mut [u32]) {
     unsafe {
@@ -158,41 +150,6 @@ fn get_call_stack(v: *const u32, pcs: &mut [u32]) {
 
             *pc = *ebp.add(1); // saved %eip
             ebp = *ebp.add(0) as *const u32; // saved %ebp
-        }
-    }
-}
-
-// Pushcli/popcli are like cli/sti except that they are matched:
-// it takes two popcli to undo two pushcli.  Also, if interrupts
-// are off, then pushcli, popcli leaves them off.
-fn push_cli() {
-    let eflags = unsafe { readeflags() };
-    unsafe {
-        cli();
-    }
-
-    let cpu = my_cpu_mut();
-    if cpu.ncli == 0 {
-        cpu.intena = eflags & FL_IF;
-    }
-    cpu.ncli += 1;
-}
-
-fn pop_cli() {
-    if unsafe { readeflags() & FL_IF != 0 } {
-        panic!("pop_cli - interruptible");
-    }
-
-    let cpu = my_cpu_mut();
-    if cpu.ncli == 0 {
-        panic!("pop_cli");
-    }
-
-    cpu.ncli -= 1;
-
-    if cpu.ncli == 0 && cpu.intena != 0 {
-        unsafe {
-            sti();
         }
     }
 }
@@ -238,15 +195,5 @@ mod _binding {
             let pcs = core::slice::from_raw_parts_mut(pcs, 10);
             get_call_stack(v, pcs);
         }
-    }
-
-    #[no_mangle]
-    extern "C" fn pushcli() {
-        push_cli();
-    }
-
-    #[no_mangle]
-    extern "C" fn popcli() {
-        pop_cli();
     }
 }
