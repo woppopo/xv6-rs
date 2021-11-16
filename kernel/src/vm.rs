@@ -4,7 +4,7 @@ use crate::{
     data,
     file::INode,
     fs::read_inode,
-    interrupt::free_from_interrupt,
+    interrupt,
     kalloc::{kalloc, kalloc_zeroed, kfree},
     memlayout::{p2v, v2p, DEVSPACE, EXTMEM, KERNBASE, KERNLINK, PHYSTOP},
     mmu::{
@@ -421,7 +421,7 @@ fn uvm_switch(proc: *mut Process) {
     unsafe {
         const STS_T32A: u8 = 0x9; // Available 32-bit TSS
 
-        free_from_interrupt(|| {
+        interrupt::free(|| {
             let cpu = my_cpu_mut();
             cpu.gdt.task_state = SegmentDescriptor::new16(
                 STS_T32A,

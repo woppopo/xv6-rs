@@ -3,7 +3,7 @@ use crate::{
     keyboard::keyboard_interrupt,
     lapic::lapiceoi,
     mmu::SegmentDescriptorTable,
-    proc::{exit, my_cpu_id, myproc, wakeup, yield_proc, ProcessState},
+    proc::{exit, my_cpu_id, my_process, wakeup, yield_proc, ProcessState},
     spinlock::SpinLockC,
     syscall::syscall,
     trapvec::trap_vector,
@@ -136,14 +136,14 @@ unsafe fn trap_handler(tf: &mut TrapFrame) {
     use crate::uart::uart_interrupt_handler;
 
     if tf.trapno == T_SYSCALL {
-        if (*myproc()).killed != 0 {
+        if (*my_process()).killed != 0 {
             exit()
         }
 
-        (*myproc()).tf = tf;
+        (*my_process()).tf = tf;
         syscall();
 
-        if (*myproc()).killed != 0 {
+        if (*my_process()).killed != 0 {
             exit()
         }
 
@@ -180,35 +180,35 @@ unsafe fn trap_handler(tf: &mut TrapFrame) {
             lapiceoi();
         }
         _ => {
-            if myproc().is_null() || tf.cs & 3 == 0 {
+            if my_process().is_null() || tf.cs & 3 == 0 {
                 // In kernel, it must be our mistake.
                 //cprintf("unexpected trap %d from cpu %d eip %x (cr2=0x%x)\n", tf->trapno, cpuid(), tf->eip, rcr2());
                 panic!("trap");
             }
             // In user space, assume process misbehaved.
-            //cprintf("pid %d %s: trap %d err %d on cpu %d eip 0x%x addr 0x%x--kill proc\n", myproc()->pid, myproc()->name, tf->trapno, tf->err, cpuid(), tf->eip, rcr2());
-            (*myproc()).killed = 1;
+            //cprintf("pid %d %s: trap %d err %d on cpu %d eip 0x%x addr 0x%x--kill proc\n", my_process()->pid, my_process()->name, tf->trapno, tf->err, cpuid(), tf->eip, rcr2());
+            (*my_process()).killed = 1;
         }
     }
 
     // Force process exit if it has been killed and is in user space.
     // (If it is still executing in the kernel, let it keep running
     // until it gets to the regular system call return.)
-    if !myproc().is_null() && (*myproc()).killed != 0 && (tf.cs & 3) == 3 {
+    if !my_process().is_null() && (*my_process()).killed != 0 && (tf.cs & 3) == 3 {
         exit();
     }
 
     // Force process to give up CPU on clock tick.
     // If interrupts were on while locks held, would need to check nlock.
-    if !myproc().is_null()
-        && (*myproc()).state == ProcessState::Running
+    if !my_process().is_null()
+        && (*my_process()).state == ProcessState::Running
         && tf.trapno == T_IRQ0 + IRQ_TIMER
     {
         yield_proc();
     }
 
     // Check if the process has been killed since we yielded
-    if !myproc().is_null() && (*myproc()).killed != 0 && (tf.cs & 3) == 3 {
+    if !my_process().is_null() && (*my_process()).killed != 0 && (tf.cs & 3) == 3 {
         exit();
     }
 }

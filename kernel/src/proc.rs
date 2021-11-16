@@ -4,6 +4,7 @@ use arrayvec::ArrayVec;
 
 use crate::{
     file::{File, INode},
+    interrupt,
     lapic::lapicid,
     mmu::{SegmentDescriptorTable, TaskState, FL_IF},
     param::{NOFILE, NPROC},
@@ -23,7 +24,7 @@ pub struct Cpu {
     pub started: AtomicU32,          // Has the CPU started?
     pub ncli: i32,                   // Depth of pushcli nesting.
     pub intena: u32,                 // Were interrupts enabled before pushcli?
-    proc: *const Process,            // The process running on this cpu or null
+    proc: *mut Process,              // The process running on this cpu or null
 }
 
 // Saved registers for kernel context switches.
@@ -125,8 +126,11 @@ pub fn my_cpu_mut() -> &'static mut Cpu {
     &mut cpus[id]
 }
 
+pub fn my_process() -> *mut Process {
+    interrupt::free(|| my_cpu().proc)
+}
+
 extern "C" {
-    pub fn myproc() -> *mut Process;
     pub fn wakeup(chan: *const c_void);
     pub fn sleep(chan: *const c_void, lk: *const SpinLockC);
     pub fn exit();
@@ -139,5 +143,10 @@ mod _bindings {
     #[no_mangle]
     extern "C" fn mycpu() -> *mut Cpu {
         my_cpu_mut()
+    }
+
+    #[no_mangle]
+    extern "C" fn myproc() -> *mut Process {
+        my_process()
     }
 }

@@ -6,7 +6,7 @@ use core::{
 };
 
 use crate::{
-    interrupt::{free_from_interrupt, pop_cli, push_cli},
+    interrupt::{self, pop_cli, push_cli},
     memlayout::KERNBASE,
     proc::{my_cpu, Cpu},
 };
@@ -132,7 +132,7 @@ impl SpinLockC {
 
     // Check whether this cpu is holding the lock.
     pub fn is_locked(&self) -> bool {
-        free_from_interrupt(|| {
+        interrupt::free(|| {
             self.locked.load(core::sync::atomic::Ordering::Relaxed) != 0 && self.cpu == my_cpu()
         })
     }

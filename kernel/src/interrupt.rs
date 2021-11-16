@@ -4,7 +4,7 @@ use crate::{
     x86::{cli, readeflags, sti},
 };
 
-pub fn free_from_interrupt<R>(f: impl FnOnce() -> R) -> R {
+pub fn free<R>(f: impl FnOnce() -> R) -> R {
     push_cli();
     let ret = f();
     pop_cli();

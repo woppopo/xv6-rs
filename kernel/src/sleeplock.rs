@@ -1,5 +1,5 @@
 use crate::{
-    proc::{myproc, sleep, wakeup},
+    proc::{my_process, sleep, wakeup},
     spinlock::SpinLockC,
 };
 
@@ -28,7 +28,7 @@ impl SleepLockC {
             }
         }
         self.locked = 1;
-        self.pid = unsafe { (*myproc()).pid };
+        self.pid = unsafe { (*my_process()).pid };
         self.lock.release();
     }
 
@@ -44,7 +44,7 @@ impl SleepLockC {
 
     pub fn is_locked(&mut self) -> bool {
         self.lock.acquire();
-        let ret = self.locked != 0 && self.pid == unsafe { (*myproc()).pid };
+        let ret = self.locked != 0 && self.pid == unsafe { (*my_process()).pid };
         self.lock.release();
         ret
     }
