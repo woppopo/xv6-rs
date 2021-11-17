@@ -1,3 +1,5 @@
+use crate::proc::Context;
+
 global_asm!(
     r#"
     .globl swtch
@@ -22,3 +24,7 @@ global_asm!(
         ret
     "#
 );
+
+extern "C" {
+    pub fn swtch(from: *mut *mut Context, to: *mut Context);
+}

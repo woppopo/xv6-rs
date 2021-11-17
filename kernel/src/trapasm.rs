@@ -36,3 +36,7 @@ global_asm!(
     ds = const (SEG_KDATA << 3),
     options(att_syntax)
 );
+
+extern "C" {
+    pub fn trapret();
+}

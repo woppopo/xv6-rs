@@ -5,10 +5,13 @@ use arrayvec::ArrayVec;
 use crate::{
     file::{File, INode},
     interrupt,
+    kalloc::kalloc,
     lapic::lapicid,
     mmu::{SegmentDescriptorTable, TaskState, FL_IF},
-    param::{NOFILE, NPROC},
-    spinlock::SpinLockC,
+    param::{KSTACKSIZE, NOFILE, NPROC},
+    spinlock::{SpinLock, SpinLockC},
+    switch::swtch,
+    trapasm::trapret,
     vm::PDE,
     x86::{readeflags, TrapFrame},
     CPUS,
@@ -18,7 +21,7 @@ use crate::{
 #[repr(C)]
 pub struct Cpu {
     pub apicid: u8,                  // Local APIC ID
-    scheduler: *const Context,       // swtch() here to enter scheduler
+    scheduler: *mut Context,         // swtch() here to enter scheduler
     pub ts: TaskState,               // Used by x86 to find stack for interrupt
     pub gdt: SegmentDescriptorTable, // x86 global descriptor table
     pub started: AtomicU32,          // Has the CPU started?
@@ -46,6 +49,18 @@ pub struct Context {
     eip: u32,
 }
 
+impl Context {
+    pub const fn null() -> Self {
+        Self {
+            edi: 0,
+            esi: 0,
+            ebx: 0,
+            ebp: 0,
+            eip: 0,
+        }
+    }
+}
+
 #[repr(C)]
 #[derive(PartialEq)]
 pub enum ProcessState {
@@ -67,12 +82,55 @@ pub struct Process {
     pub pid: i32,            // Process ID
     parent: *const Self,     // Parent process
     pub tf: *mut TrapFrame,  // Trap frame for current syscall
-    context: *const Context, // swtch() here to run process
+    context: *mut Context,   // swtch() here to run process
     chan: *const c_void,     // If non-zero, sleeping on chan
     pub killed: i32,         // If non-zero, have been killed
     ofile: [File; NOFILE],   // Open files
     cwd: *const INode,       // Current directory
     name: [i8; 16],          // Process name (debugging)
+}
+
+impl Process {
+    pub fn create(pid: i32) -> Option<Self> {
+        const FILE_EMPTY: File = File::new();
+
+        let stack = kalloc()?;
+        let sp = stack + KSTACKSIZE;
+
+        let sp = sp - core::mem::size_of::<TrapFrame>();
+        let tf = sp as *mut TrapFrame;
+
+        let sp = sp - core::mem::size_of::<usize>();
+        unsafe {
+            (sp as *mut usize).write(trapret as usize);
+        }
+
+        let sp = sp - core::mem::size_of::<Context>();
+        let context = sp as *mut Context;
+        unsafe {
+            context.write({
+                let mut c = Context::null();
+                c.eip = forkret as u32;
+                c
+            });
+        }
+
+        Some(Process {
+            sz: 0,
+            pgdir: core::ptr::null(),
+            kstack: stack as *const u8,
+            state: ProcessState::Embryo,
+            pid,
+            parent: core::ptr::null(),
+            tf,
+            context,
+            chan: core::ptr::null(),
+            killed: 0,
+            ofile: [FILE_EMPTY; NOFILE],
+            cwd: 0 as *const INode,
+            name: [0; 16],
+        })
+    }
 }
 
 struct ProcessTable {
@@ -91,9 +149,13 @@ impl ProcessTable {
             nextpid: 1,
         }
     }
+
+    pub fn alloc_process(&mut self) -> Option<*mut Process> {
+        todo!()
+    }
 }
 
-static mut PROCS: ProcessTable = ProcessTable::new();
+static mut PROCS: SpinLock<ProcessTable> = SpinLock::new(ProcessTable::new());
 
 // Must be called with interrupts disabled
 pub fn my_cpu_id() -> usize {
@@ -130,11 +192,47 @@ pub fn my_process() -> *mut Process {
     interrupt::free(|| my_cpu().proc)
 }
 
+// Enter scheduler.  Must hold only ptable.lock
+// and have changed proc->state. Saves and restores
+// intena because intena is a property of this
+// kernel thread, not this CPU. It should
+// be proc->intena and proc->ncli, but that would
+// break in the few places where a lock is held but
+// there's no process.
+pub fn enter_scheduler() {
+    let p = my_process();
+
+    /*
+    if !holding(&ptable.lock) {
+        panic!("enter_scheduler: ptable.lock");
+    }
+    */
+
+    if my_cpu().ncli != 1 {
+        panic!("enter_scheduler: locks");
+    }
+
+    if unsafe { (*p).state == ProcessState::Running } {
+        panic!("enter_scheduler: running");
+    }
+
+    if unsafe { readeflags() & FL_IF != 0 } {
+        panic!("enter_scheduler: interruptible");
+    }
+
+    let intena = my_cpu().intena;
+    unsafe {
+        swtch(&mut (*p).context, my_cpu().scheduler);
+        my_cpu_mut().intena = intena;
+    }
+}
+
 extern "C" {
     pub fn wakeup(chan: *const c_void);
     pub fn sleep(chan: *const c_void, lk: *const SpinLockC);
     pub fn exit();
     pub fn yield_proc();
+    fn forkret();
 }
 
 mod _bindings {
@@ -148,5 +246,10 @@ mod _bindings {
     #[no_mangle]
     extern "C" fn myproc() -> *mut Process {
         my_process()
+    }
+
+    #[no_mangle]
+    extern "C" fn sched() {
+        enter_scheduler();
     }
 }
