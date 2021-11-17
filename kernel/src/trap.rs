@@ -136,14 +136,14 @@ unsafe fn trap_handler(tf: &mut TrapFrame) {
     use crate::uart::uart_interrupt_handler;
 
     if tf.trapno == T_SYSCALL {
-        if (*my_process()).killed != 0 {
+        if (*my_process().unwrap()).killed != 0 {
             exit()
         }
 
-        (*my_process()).tf = tf;
+        (*my_process().unwrap()).tf = tf;
         syscall();
 
-        if (*my_process()).killed != 0 {
+        if (*my_process().unwrap()).killed != 0 {
             exit()
         }
 
@@ -180,35 +180,35 @@ unsafe fn trap_handler(tf: &mut TrapFrame) {
             lapiceoi();
         }
         _ => {
-            if my_process().is_null() || tf.cs & 3 == 0 {
+            if my_process().is_none() || tf.cs & 3 == 0 {
                 // In kernel, it must be our mistake.
                 //cprintf("unexpected trap %d from cpu %d eip %x (cr2=0x%x)\n", tf->trapno, cpuid(), tf->eip, rcr2());
                 panic!("trap");
             }
             // In user space, assume process misbehaved.
             //cprintf("pid %d %s: trap %d err %d on cpu %d eip 0x%x addr 0x%x--kill proc\n", my_process()->pid, my_process()->name, tf->trapno, tf->err, cpuid(), tf->eip, rcr2());
-            (*my_process()).killed = 1;
+            (*my_process().unwrap()).killed = 1;
         }
     }
 
     // Force process exit if it has been killed and is in user space.
     // (If it is still executing in the kernel, let it keep running
     // until it gets to the regular system call return.)
-    if !my_process().is_null() && (*my_process()).killed != 0 && (tf.cs & 3) == 3 {
+    if !my_process().is_none() && (*my_process().unwrap()).killed != 0 && (tf.cs & 3) == 3 {
         exit();
     }
 
     // Force process to give up CPU on clock tick.
     // If interrupts were on while locks held, would need to check nlock.
-    if !my_process().is_null()
-        && (*my_process()).state == ProcessState::Running
+    if !my_process().is_none()
+        && (*my_process().unwrap()).state == ProcessState::Running
         && tf.trapno == T_IRQ0 + IRQ_TIMER
     {
         yield_proc();
     }
 
     // Check if the process has been killed since we yielded
-    if !my_process().is_null() && (*my_process()).killed != 0 && (tf.cs & 3) == 3 {
+    if !my_process().is_none() && (*my_process().unwrap()).killed != 0 && (tf.cs & 3) == 3 {
         exit();
     }
 }

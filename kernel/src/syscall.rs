@@ -34,7 +34,7 @@ pub enum SystemCall {
 // Fetch the int at addr from the current process.
 #[no_mangle]
 extern "C" fn fetchint(addr: usize, ip: *mut i32) -> i32 {
-    let mut curproc = unsafe { &mut *my_process() };
+    let curproc = unsafe { &mut *my_process().unwrap() };
     if addr >= curproc.sz || addr + 4 > curproc.sz {
         return -1;
     }
@@ -57,7 +57,7 @@ fn strlen(p: *const char) -> usize {
 // Returns length of string, not including nul.
 #[no_mangle]
 extern "C" fn fetchstr(addr: usize, pp: *mut *mut char) -> i32 {
-    let mut curproc = unsafe { &mut *my_process() };
+    let curproc = unsafe { &mut *my_process().unwrap() };
     if addr >= curproc.sz {
         return -1;
     }
@@ -72,7 +72,7 @@ extern "C" fn fetchstr(addr: usize, pp: *mut *mut char) -> i32 {
 #[no_mangle]
 extern "C" fn argint(n: u32, ip: *mut i32) -> i32 {
     fetchint(
-        unsafe { (*(*my_process()).tf).esp + 4 + 4 * n } as usize,
+        unsafe { (*(*my_process().unwrap()).tf).esp + 4 + 4 * n } as usize,
         ip,
     )
 }
@@ -82,7 +82,7 @@ extern "C" fn argint(n: u32, ip: *mut i32) -> i32 {
 // lies within the process address space.
 #[no_mangle]
 extern "C" fn argptr(n: u32, pp: *mut *mut u8, size: usize) -> i32 {
-    let mut curproc = unsafe { &mut *my_process() };
+    let curproc = unsafe { &mut *my_process().unwrap() };
     let mut i = 0;
     if argint(n, &mut i) < 0 {
         return -1;
@@ -102,7 +102,7 @@ extern "C" fn argptr(n: u32, pp: *mut *mut u8, size: usize) -> i32 {
 // between this check and being used by the kernel.)
 #[no_mangle]
 extern "C" fn argstr(n: u32, pp: *mut *mut char) -> i32 {
-    let mut curproc = unsafe { &mut *my_process() };
+    let curproc = unsafe { &mut *my_process().unwrap() };
     let mut addr = 0;
     if argint(n, &mut addr) < 0 {
         return -1;
@@ -142,7 +142,7 @@ pub extern "C" fn syscall() {
         sys_unlink, sys_link, sys_mkdir, sys_close,
     ];
 
-    let mut curproc = unsafe { &mut *my_process() };
+    let curproc = unsafe { &mut *my_process().unwrap() };
     let mut tf = unsafe { &mut *curproc.tf };
     let num = tf.eax as usize;
 

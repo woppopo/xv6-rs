@@ -1,6 +1,7 @@
 #![no_std]
 #![no_main]
 #![feature(asm)]
+#![feature(asm_const)]
 #![feature(global_asm)]
 #![feature(const_size_of_val)]
 // Intel記法では何故かljmpのオペランドにCSレジスタの値を書けないので、

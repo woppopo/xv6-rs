@@ -2,6 +2,7 @@
 #![no_std]
 #![no_main]
 #![feature(asm)]
+#![feature(asm_const)]
 #![feature(global_asm)]
 #![feature(naked_functions)]
 #![feature(once_cell)]
@@ -123,7 +124,6 @@ unsafe extern "C" fn main() {
     use crate::memlayout::{p2v, PHYSTOP};
     use crate::mp::mp_init;
     use crate::picirq::picinit;
-    use crate::trap::load_interrupt_descriptor_table;
     use crate::uart::uartinit;
     use crate::vm::{kvm_alloc, seginit};
 

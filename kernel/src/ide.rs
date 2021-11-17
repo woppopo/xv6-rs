@@ -123,11 +123,7 @@ impl IDE {
         // Read data if needed.
         unsafe {
             if (*buf).flags & Buffer::DIRTY == 0 && wait_ide() {
-                insl(
-                    0x1f0,
-                    unsafe { (*buf).data.as_ptr() as *mut u32 },
-                    BSIZE / 4,
-                );
+                insl(0x1f0, (*buf).data.as_ptr() as *mut u32, BSIZE / 4);
             }
         }
 

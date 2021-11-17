@@ -79,7 +79,7 @@ pub struct Process {
     pub pgdir: *const PDE,   // Page table
     pub kstack: *const u8,   // Bottom of kernel stack for this process
     pub state: ProcessState, // Process state
-    pub pid: i32,            // Process ID
+    pub pid: u32,            // Process ID
     parent: *const Self,     // Parent process
     pub tf: *mut TrapFrame,  // Trap frame for current syscall
     context: *mut Context,   // swtch() here to run process
@@ -91,7 +91,7 @@ pub struct Process {
 }
 
 impl Process {
-    pub fn create(pid: i32) -> Option<Self> {
+    pub fn create(pid: u32) -> Option<Self> {
         const FILE_EMPTY: File = File::new();
 
         let stack = kalloc()?;
@@ -136,7 +136,7 @@ impl Process {
 struct ProcessTable {
     lock: SpinLockC,
     init: *mut Process,
-    procs: ArrayVec<Process, NPROC>,
+    procs: ArrayVec<SpinLock<Process>, NPROC>,
     nextpid: u32,
 }
 
@@ -150,8 +150,62 @@ impl ProcessTable {
         }
     }
 
-    pub fn alloc_process(&mut self) -> Option<*mut Process> {
-        todo!()
+    pub fn alloc(&mut self) -> Option<&SpinLock<Process>> {
+        if self.procs.is_full() {
+            return None;
+        }
+
+        let proc = Process::create(self.nextpid)?;
+        self.nextpid += 1;
+
+        self.procs.push(SpinLock::new(proc));
+        self.procs.last()
+    }
+
+    pub fn find(&mut self, pid: u32) -> Option<&SpinLock<Process>> {
+        self.procs.iter().find(|p| p.lock().pid == pid)
+    }
+
+    pub fn sleep(&mut self, chan: *const c_void, lk: &mut SpinLockC) {
+        let p = my_process().expect("sleep");
+        let p = unsafe { &mut *p };
+
+        p.chan = chan;
+        p.state = ProcessState::Sleeping;
+
+        enter_scheduler();
+
+        // Tidy up.
+        p.chan = core::ptr::null();
+    }
+
+    // Wake up all processes sleeping on chan.
+    // The ptable lock must be held.
+    pub fn wakeup(&mut self, chan: *const c_void) {
+        for p in self.procs.iter_mut() {
+            let mut p = p.lock();
+            if p.state == ProcessState::Sleeping && p.chan == chan {
+                p.state = ProcessState::Runnable;
+            }
+        }
+    }
+
+    // Kill the process with the given pid.
+    // Process won't exit until it returns
+    // to user space (see trap in trap.c).
+    pub fn kill(&mut self, pid: u32) -> bool {
+        match self.find(pid) {
+            Some(p) => {
+                let mut p = p.lock();
+                p.killed = 1;
+                // Wake process from sleep if necessary.
+                if p.state == ProcessState::Sleeping {
+                    p.state = ProcessState::Runnable;
+                }
+                true
+            }
+            None => false,
+        }
     }
 }
 
@@ -188,8 +242,14 @@ pub fn my_cpu_mut() -> &'static mut Cpu {
     &mut cpus[id]
 }
 
-pub fn my_process() -> *mut Process {
-    interrupt::free(|| my_cpu().proc)
+pub fn my_process() -> Option<*mut Process> {
+    interrupt::free(|| {
+        if my_cpu().proc.is_null() {
+            None
+        } else {
+            Some(my_cpu().proc)
+        }
+    })
 }
 
 // Enter scheduler.  Must hold only ptable.lock
@@ -200,7 +260,7 @@ pub fn my_process() -> *mut Process {
 // break in the few places where a lock is held but
 // there's no process.
 pub fn enter_scheduler() {
-    let p = my_process();
+    let p = my_process().unwrap();
 
     /*
     if !holding(&ptable.lock) {
@@ -245,7 +305,7 @@ mod _bindings {
 
     #[no_mangle]
     extern "C" fn myproc() -> *mut Process {
-        my_process()
+        my_process().unwrap_or(core::ptr::null_mut())
     }
 
     #[no_mangle]

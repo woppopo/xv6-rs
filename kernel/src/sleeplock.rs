@@ -8,7 +8,7 @@ use crate::{
 pub struct SleepLockC {
     locked: u32,     // Is the lock held?
     lock: SpinLockC, // spinlock protecting this sleep lock
-    pid: i32,        // Process holding lock
+    pid: u32,        // Process holding lock
 }
 
 impl SleepLockC {
@@ -28,7 +28,7 @@ impl SleepLockC {
             }
         }
         self.locked = 1;
-        self.pid = unsafe { (*my_process()).pid };
+        self.pid = unsafe { (*my_process().unwrap()).pid };
         self.lock.release();
     }
 
@@ -44,7 +44,7 @@ impl SleepLockC {
 
     pub fn is_locked(&mut self) -> bool {
         self.lock.acquire();
-        let ret = self.locked != 0 && self.pid == unsafe { (*my_process()).pid };
+        let ret = self.locked != 0 && self.pid == unsafe { (*my_process().unwrap()).pid };
         self.lock.release();
         ret
     }
