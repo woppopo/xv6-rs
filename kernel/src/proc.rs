@@ -12,7 +12,7 @@ use crate::{
     spinlock::{SpinLock, SpinLockC},
     switch::swtch,
     trapasm::trapret,
-    vm::PDE,
+    vm::{uvm_alloc, uvm_dealloc, uvm_switch, PDE},
     x86::{readeflags, TrapFrame},
     CPUS,
 };
@@ -76,7 +76,7 @@ pub enum ProcessState {
 #[repr(C)]
 pub struct Process {
     pub sz: usize,           // Size of process memory (bytes)
-    pub pgdir: *const PDE,   // Page table
+    pub pgdir: *mut PDE,     // Page table
     pub kstack: *const u8,   // Bottom of kernel stack for this process
     pub state: ProcessState, // Process state
     pub pid: u32,            // Process ID
@@ -117,7 +117,7 @@ impl Process {
 
         Some(Process {
             sz: 0,
-            pgdir: core::ptr::null(),
+            pgdir: core::ptr::null_mut(),
             kstack: stack as *const u8,
             state: ProcessState::Embryo,
             pid,
@@ -207,6 +207,13 @@ impl ProcessTable {
             None => false,
         }
     }
+
+    pub fn yield_proc(&mut self) {
+        unsafe {
+            (*my_process().unwrap()).state = ProcessState::Runnable;
+        }
+        enter_scheduler();
+    }
 }
 
 static mut PROCS: SpinLock<ProcessTable> = SpinLock::new(ProcessTable::new());
@@ -250,6 +257,32 @@ pub fn my_process() -> Option<*mut Process> {
             Some(my_cpu().proc)
         }
     })
+}
+
+// Grow current process's memory by n bytes.
+pub fn grow_my_process(n: isize) -> bool {
+    match my_process() {
+        Some(curproc) => {
+            let curproc = unsafe { &mut *curproc };
+            let sz = if n > 0 {
+                uvm_alloc(curproc.pgdir, curproc.sz, curproc.sz + n.unsigned_abs())
+            } else if n < 0 {
+                uvm_dealloc(curproc.pgdir, curproc.sz, curproc.sz - n.unsigned_abs())
+            } else {
+                curproc.sz
+            };
+
+            if sz == 0 {
+                return false;
+            }
+
+            curproc.sz = sz;
+            uvm_switch(curproc);
+
+            true
+        }
+        None => false,
+    }
 }
 
 // Enter scheduler.  Must hold only ptable.lock
@@ -311,5 +344,10 @@ mod _bindings {
     #[no_mangle]
     extern "C" fn sched() {
         enter_scheduler();
+    }
+
+    #[no_mangle]
+    extern "C" fn growproc(n: i32) -> i32 {
+        grow_my_process(n as isize).into()
     }
 }

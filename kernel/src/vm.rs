@@ -329,7 +329,7 @@ fn uvm_load(pgdir: *mut PDE, addr: usize, ip: *const INode, offset: usize, size:
 
 // Allocate page tables and physical memory to grow process from oldsz to
 // newsz, which need not be page aligned.  Returns new size or 0 on error.
-fn uvm_alloc(pgdir: *mut PDE, size_old: usize, size_new: usize) -> usize {
+pub fn uvm_alloc(pgdir: *mut PDE, size_old: usize, size_new: usize) -> usize {
     if size_new >= KERNBASE {
         return 0;
     }
@@ -373,7 +373,7 @@ fn uvm_alloc(pgdir: *mut PDE, size_old: usize, size_new: usize) -> usize {
 // newsz.  oldsz and newsz need not be page-aligned, nor does newsz
 // need to be less than oldsz.  oldsz can be larger than the actual
 // process size.  Returns the new process size.
-fn uvm_dealloc(pgdir: *mut PDE, size_old: usize, size_new: usize) -> usize {
+pub fn uvm_dealloc(pgdir: *mut PDE, size_old: usize, size_new: usize) -> usize {
     if size_new >= size_old {
         return size_old;
     }
@@ -405,7 +405,7 @@ fn uvm_dealloc(pgdir: *mut PDE, size_old: usize, size_new: usize) -> usize {
 }
 
 // Switch TSS and h/w page table to correspond to process p.
-fn uvm_switch(proc: *mut Process) {
+pub fn uvm_switch(proc: *mut Process) {
     if proc.is_null() {
         panic!("uvm_switch: no process");
     }
