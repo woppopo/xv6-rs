@@ -19,6 +19,7 @@ use vm::PDE;
 
 mod buf;
 mod console;
+mod elf;
 mod file;
 mod fs;
 mod ide;

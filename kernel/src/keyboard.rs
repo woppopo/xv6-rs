@@ -209,7 +209,7 @@ unsafe fn keyboard_getc() -> Option<u8> {
     let mut c = charcode[(SHIFT & (CTL | SHIFT)) as usize][data as usize];
     if SHIFT & CAPSLOCK != 0 {
         if 'a' as u8 <= c && c <= 'z' as u8 {
-            c = c + 'A' as u8 - 'a' as u8;
+            c += c + 'A' as u8 - 'a' as u8;
         } else if u8('A') <= c && c <= u8('Z') {
             c += 'a' as u8 - 'A' as u8;
         }
