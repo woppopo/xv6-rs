@@ -64,6 +64,22 @@ pub unsafe fn outsl(port: u16, addr: *const u32, count: usize) {
     }
 }
 
+pub unsafe fn stosb(addr: *mut u8, val: u8, count: usize) {
+    //asm!("cld; rep stosl", in("edi") addr, in("eax") val, in("ecx") count, options(att_syntax));
+    for i in 0..count {
+        let ptr = addr.add(i);
+        *ptr = val;
+    }
+}
+
+pub unsafe fn stosl(addr: *mut u32, val: u32, count: usize) {
+    //asm!("cld; rep stosl", in("edi") addr, in("eax") val, in("ecx") count, options(att_syntax));
+    for i in 0..count {
+        let ptr = addr.add(i);
+        *ptr = val;
+    }
+}
+
 pub unsafe fn lcr3(val: usize) {
     asm!("mov cr3, {0}", in(reg) val, options(nostack));
 }

@@ -37,6 +37,7 @@ mod pipe;
 mod proc;
 mod sleeplock;
 mod spinlock;
+mod string;
 mod switch;
 mod sync_hack;
 mod syscall;
