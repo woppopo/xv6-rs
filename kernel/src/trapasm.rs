@@ -1,3 +1,5 @@
+use core::arch::global_asm;
+
 const SEG_KDATA: u32 = 2;
 
 global_asm!(

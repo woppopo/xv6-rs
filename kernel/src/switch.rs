@@ -1,3 +1,5 @@
+use core::arch::global_asm;
+
 use crate::proc::Context;
 
 global_asm!(

@@ -1,6 +1,7 @@
 // This file contains definitions for the
 // x86 memory management unit (MMU).
 
+use core::arch::asm;
 use core::ffi::c_void;
 
 // Eflags register

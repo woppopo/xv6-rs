@@ -1,3 +1,4 @@
+use core::arch::asm;
 use seq_macro::seq;
 
 pub type Trap = extern "C" fn() -> !;

@@ -8,7 +8,6 @@
 	"os": "none",
 	"linker": "rust-lld",
 	"linker-flavor": "ld.lld",
-	"has-elf-tls": true,
 	"disable-redzone": true,
 	"panic-strategy": "abort",
 	"dynamic-linking": false,

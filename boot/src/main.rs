@@ -1,13 +1,13 @@
 #![no_std]
 #![no_main]
-#![feature(asm)]
 #![feature(asm_const)]
-#![feature(global_asm)]
 #![feature(const_size_of_val)]
 // Intel記法では何故かljmpのオペランドにCSレジスタの値を書けないので、
 // 一時的にAT&T記法を使用する
 // その際に発生する警告を無効化する
 #![allow(bad_asm_style)]
+
+use core::arch::{asm, global_asm};
 
 // 以下の定数値はglobal_asmで使用されているが、
 // 何故か未使用の警告が出るのでそれを無効化する
@@ -233,7 +233,10 @@ unsafe extern "C" fn boot_main() {
         read_segment(paddr, filesize, offset);
 
         if memsize > filesize {
-            core::ptr::write_bytes(paddr.add(filesize), 0, memsize - filesize);
+            for i in 0..(memsize - filesize) {
+                *paddr.add(filesize).add(i) = 0;
+            }
+            //core::ptr::write_bytes(paddr.add(filesize), 0, memsize - filesize);
         }
 
         ph = ph.add(1);
@@ -244,12 +247,14 @@ unsafe extern "C" fn boot_main() {
     ((*elf).entry)();
 }
 
+#[inline(always)]
 fn wait_disk() {
     // Wait for disk ready.
     while (unsafe { inb(0x1F7) } & 0xC0) != 0x40 {}
 }
 
 // Read a single sector at offset into dst.
+#[inline(always)]
 unsafe fn read_sector(dst: *mut u8, offset: usize) {
     // Issue command.
     wait_disk();

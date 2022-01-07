@@ -1,14 +1,13 @@
 #![allow(incomplete_features)]
 #![no_std]
 #![no_main]
-#![feature(asm)]
 #![feature(asm_const)]
-#![feature(global_asm)]
 #![feature(naked_functions)]
 #![feature(once_cell)]
 #![feature(const_size_of_val)]
 #![feature(const_fn_fn_ptr_basics)]
 #![feature(inline_const)]
+#![feature(inline_const_pat)]
 
 use core::mem::MaybeUninit;
 
