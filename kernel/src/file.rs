@@ -11,13 +11,13 @@ pub enum FileKind {
 
 #[repr(C)]
 pub struct File {
-    kind: FileKind,
-    ref_count: i32, // reference count
-    readable: u8,
-    writable: u8,
-    pipe: *const Pipe,
-    ip: *const INode,
-    offset: u32,
+    pub kind: FileKind,
+    pub ref_count: i32, // reference count
+    pub readable: u8,
+    pub writable: u8,
+    pub pipe: *const Pipe,
+    pub ip: *const INode,
+    pub offset: u32,
 }
 
 impl File {

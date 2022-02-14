@@ -8,6 +8,7 @@
 #![feature(const_fn_fn_ptr_basics)]
 #![feature(inline_const)]
 #![feature(inline_const_pat)]
+#![feature(let_else)]
 
 use core::mem::MaybeUninit;
 
