@@ -85,7 +85,7 @@ pub unsafe extern "C" fn pipeclose(p: *mut Pipe, writable: i32) {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn pipewrite(p: *mut Pipe, addr: *mut u8, n: usize) -> i32 {
+pub unsafe extern "C" fn pipewrite(p: *mut Pipe, addr: *const u8, n: usize) -> i32 {
     (*p).lock.acquire();
     for i in 0..n {
         while (*p).nwrite == (*p).nread + PIPESIZE {

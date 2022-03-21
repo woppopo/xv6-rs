@@ -41,7 +41,7 @@ impl IDE {
         }
 
         let mut havedisk1 = false;
-        for i in 0..1000 {
+        for _i in 0..1000 {
             if unsafe { inb(0x1f7) != 0 } {
                 havedisk1 = true;
                 break;

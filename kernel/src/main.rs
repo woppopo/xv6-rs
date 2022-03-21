@@ -5,7 +5,6 @@
 #![feature(naked_functions)]
 #![feature(once_cell)]
 #![feature(const_size_of_val)]
-#![feature(const_fn_fn_ptr_basics)]
 #![feature(inline_const)]
 #![feature(inline_const_pat)]
 #![feature(let_else)]
@@ -39,6 +38,7 @@ mod pipe;
 mod proc;
 mod sleeplock;
 mod spinlock;
+mod stat;
 mod string;
 mod switch;
 mod sync_hack;
