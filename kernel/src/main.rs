@@ -51,7 +51,21 @@ mod vm;
 mod x86;
 
 #[panic_handler]
-fn panic(_info: &core::panic::PanicInfo) -> ! {
+fn panic(info: &core::panic::PanicInfo) -> ! {
+    extern "C" {
+        fn panic(msg: *const u8);
+    }
+
+    unsafe {
+        //panic(b"Kernel panic\0".as_ptr());
+        match info.payload().downcast_ref::<&str>() {
+            Some(s) => panic(s.as_ptr()),
+            None => {
+                let caller = info.location().unwrap();
+                panic(caller.file().as_ptr());
+            }
+        }
+    }
     loop {}
 }
 

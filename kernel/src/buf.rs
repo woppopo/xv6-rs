@@ -143,7 +143,7 @@ impl BufferCache {
         buf
     }
 
-    pub fn release_buffer(&mut self, buf: &mut Buffer) {
+    fn release_buffer(&mut self, buf: &mut Buffer) {
         self.lock.acquire();
         buf.refcnt -= 1;
         if buf.refcnt == 0 && buf.flags & Buffer::DIRTY == 0 {
@@ -159,14 +159,14 @@ impl BufferCache {
     }
 }
 
+pub static mut BUFFER_CACHE: BufferCache = BufferCache::new();
+
 mod _binding {
     use super::*;
 
-    static mut CACHE: BufferCache = BufferCache::new();
-
     #[no_mangle]
     extern "C" fn bread(dev: u32, blockno: u32) -> *mut Buffer {
-        unsafe { CACHE.read(dev as usize, blockno as usize) }
+        unsafe { BUFFER_CACHE.read(dev as usize, blockno as usize) }
     }
 
     #[no_mangle]
@@ -179,7 +179,7 @@ mod _binding {
     #[no_mangle]
     extern "C" fn brelse(b: *mut Buffer) {
         unsafe {
-            (*b).release(&mut CACHE);
+            (*b).release(&mut BUFFER_CACHE);
         }
     }
 }
